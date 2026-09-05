@@ -1,0 +1,28 @@
+// ─────────────────────────────────────────────
+//  CHUD Program: Sigma Rizz & Status Evaluator
+// ─────────────────────────────────────────────
+
+yap "--- CHUD VIBE CHECK & RIZZ EVALUATOR ---"
+yap "What is your name?"
+let name = hear
+
+yap "How many hours of sleep did you get last night?"
+let sleep = hear
+
+yap "How many lines of code did you write today?"
+let code_lines = hear
+
+let rizz_score = (sleep * 10) + (code_lines * 2)
+
+yap "Analyzing user " + name + "..."
+yap "Calculated Rizz Score: " + rizz_score
+
+check rizz_score >= 100 {
+    yap "Verdict: Absolute Sigma W! Peak Chad energy."
+} otherwise {
+    check rizz_score >= 50 {
+        yap "Verdict: Respectable grind. Keep hustling."
+    } otherwise {
+        yap "Verdict: Cooked. Go touch grass immediately."
+    }
+}

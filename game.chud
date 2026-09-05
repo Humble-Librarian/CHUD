@@ -1,0 +1,47 @@
+// ─────────────────────────────────────────────
+//  CHUD Program: Number Guessing Game
+//  Demonstrates:
+//    - 'hear' user input
+//    - 'keep' loop
+//    - 'check' & 'otherwise' branching
+//    - 'stop' loop termination
+//    - string concatenation & arithmetic
+// ─────────────────────────────────────────────
+
+yap "======================================"
+yap "    WELCOME TO THE CHUD GUESSING GAME  "
+yap "======================================"
+
+let secret = 7
+let attempts = 0
+let won = L
+
+yap "I am thinking of a secret number between 1 and 10."
+
+keep won == L {
+    yap "Enter your guess: "
+    let guess = hear
+
+    attempts = attempts + 1
+
+    check guess == secret {
+        yap "W BEHAVIOR! You guessed the secret number!"
+        yap "Total attempts taken: " + attempts
+        won = W
+        stop
+    } otherwise {
+        check guess < secret {
+            yap "Too low! Aim higher."
+        } otherwise {
+            yap "Too high! Calm down bro."
+        }
+
+        check attempts >= 5 {
+            yap "L behavior! You ran out of attempts."
+            yap "The secret number was: " + secret
+            stop
+        }
+    }
+}
+
+yap "Game Over. Thank you for playing CHUD!"

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHUD Language Studio — Visualizer & Interpreter</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- D3.js v7 via CDN -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header class="studio-header">
+    <div class="logo-group">
+      <span class="logo-badge">CHUD</span>
+      <div class="title-wrap">
+        <h1>Custom High-level User Development Language</h1>
+        <p class="subtitle">Zero-bloat AST/CST Visualizer & Tree-Walk Interpreter</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <label for="example-select" class="sr-only">Examples</label>
+      <select id="example-select" class="control-select">
+        <option value="showcase">Example: Full Showcase</option>
+        <option value="game">Example: Guessing Game (Input)</option>
+        <option value="rizz">Example: Rizz Evaluator (Input)</option>
+        <option value="math">Example: Math & Variables</option>
+        <option value="branching">Example: Check & Otherwise</option>
+        <option value="loop_break">Example: Keep Loop & Stop</option>
+        <option value="error_demo">Example: Syntax Roast Error</option>
+      </select>
+      <button id="btn-run" class="btn btn-primary">▶ Run</button>
+      <button id="btn-visualize" class="btn btn-secondary">🌳 Visualize</button>
+      <button id="btn-all" class="btn btn-accent">⚡ Run & Visualize</button>
+    </div>
+  </header>
+
+  <main class="studio-workspace">
+    <!-- Left Column: Code Editor + Console/Inspector -->
+    <section class="panel editor-panel">
+      <div class="panel-header">
+        <span class="panel-title">Source Code (CHUD)</span>
+        <span class="badge" id="source-status">Ready</span>
+      </div>
+      <div class="editor-wrap">
+        <textarea id="code-editor" spellcheck="false" placeholder="// Write your CHUD code here..."></textarea>
+      </div>
+
+      <!-- Bottom Tabs: Console Output / Variables / Tokens -->
+      <div class="bottom-drawer">
+        <div class="drawer-tabs">
+          <button class="tab-btn active" data-tab="tab-console">Console Output</button>
+          <button class="tab-btn" data-tab="tab-vars">Environment</button>
+          <button class="tab-btn" data-tab="tab-tokens">Token Stream</button>
+        </div>
+        <div class="drawer-content">
+          <div id="tab-console" class="tab-pane active">
+            <div id="console-output" class="terminal-log">
+              <span class="log-hint">Click 'Run' or press Ctrl+Enter to execute.</span>
+            </div>
+          </div>
+          <div id="tab-vars" class="tab-pane">
+            <table class="data-table" id="vars-table">
+              <thead>
+                <tr><th>Variable</th><th>Value</th></tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="2" class="empty-hint">No variables defined yet</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="tab-tokens" class="tab-pane">
+            <div id="tokens-view" class="token-pills">
+              <span class="empty-hint">Parse or run code to inspect tokens</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: D3.js Interactive Tree Visualizer -->
+    <section class="panel visualizer-panel">
+      <div class="panel-header">
+        <div class="tree-mode-toggle">
+          <button id="mode-ast" class="mode-btn active">AST (Abstract)</button>
+          <button id="mode-cst" class="mode-btn">CST (Parse Tree)</button>
+        </div>
+        <div class="tree-controls">
+          <button id="btn-zoom-in" class="icon-btn" title="Zoom In">+</button>
+          <button id="btn-zoom-out" class="icon-btn" title="Zoom Out">−</button>
+          <button id="btn-zoom-reset" class="icon-btn" title="Reset View">↺</button>
+          <button id="btn-toggle-expand" class="btn btn-tiny" title="Expand or collapse all nodes">Collapse All</button>
+        </div>
+      </div>
+
+      <div class="tree-canvas-container" id="tree-container">
+        <svg id="tree-svg"></svg>
+        <div id="tree-tooltip" class="tooltip hidden"></div>
+      </div>
+
+      <div class="legend-bar">
+        <span class="legend-item"><span class="dot stmts"></span> Statement</span>
+        <span class="legend-item"><span class="dot expr"></span> Expression / Op</span>
+        <span class="legend-item"><span class="dot lit"></span> Literal / Leaf</span>
+        <span class="legend-item"><span class="dot cst-rule"></span> Grammar Rule</span>
+        <span class="legend-item"><span class="dot cst-term"></span> Terminal Token</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
