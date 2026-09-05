@@ -6,27 +6,63 @@
 
 // ── Preset Examples ──
 const EXAMPLES = {
-  showcase: `// CHUD Language Showcase
-let name = "bro"
-let age  = 19
+  showcase: `// Language Overview: Variables, Conditionals & Loops
+let user = "Engineer"
+let access_level = 3
 
-check age >= 18 {
-    yap "you are a real one, " + name
+check access_level >= 2 {
+    yap "Status: Authorized session for " + user
 } otherwise {
-    yap "L behavior"
+    yap "Status: Access restricted"
 }
 
-let i = 0
-keep i < 5 {
-    yap "count: " + i
-    i = i + 1
-    check i == 3 {
-        yap "stopping early at 3!"
+let iteration = 0
+keep iteration < 5 {
+    yap "Step " + iteration + " verified"
+    iteration = iteration + 1
+    check iteration == 3 {
+        yap "Checkpoint reached at iteration 3"
         stop
     }
 }`,
 
-  math: `// Math & Variable Expressions
+  game: `// Number Guessing Game (Interactive Standard Input)
+yap "=== SECRET NUMBER GAME ==="
+let secret = 7
+yap "Enter your secret number guess (1-10):"
+let guess = hear
+
+check guess == secret {
+    yap "Success: Correct guess!"
+} otherwise {
+    yap "Failure: The secret number was 7."
+}`,
+
+  metrics: `// Productivity & Activity Metric Calculator
+yap "What is your name?"
+let name = hear
+
+yap "How many hours of sleep did you get last night?"
+let sleep = hear
+
+yap "How many lines of code did you write today?"
+let code_lines = hear
+
+let productivity_score = (sleep * 10) + (code_lines * 2)
+yap "User: " + name
+yap "Calculated Productivity Score: " + productivity_score
+
+check productivity_score >= 100 {
+    yap "Evaluation: High performance benchmark achieved."
+} otherwise {
+    check productivity_score >= 50 {
+        yap "Evaluation: Standard baseline maintained."
+    } otherwise {
+        yap "Evaluation: Rest and recharge recommended."
+    }
+}`,
+
+  math: `// Math & Arithmetic Expressions
 let a = 15
 let b = 4
 let sum = a + b
@@ -40,67 +76,31 @@ yap "prod = " + prod
 yap "div = " + div
 yap "is a > b? " + (a > b)`,
 
-  branching: `// Nested Check / Otherwise Branching
+  branching: `// Conditional Branching & Grade Evaluation
 let score = 85
 
 check score >= 90 {
-    yap "Grade: Sigma (A)"
+    yap "Grade: Distinction (A)"
 } otherwise {
     check score >= 75 {
-        yap "Grade: Respectable (B)"
+        yap "Grade: Merit (B)"
     } otherwise {
-        yap "Grade: Cooked (F)"
+        yap "Grade: Pass (C)"
     }
 }`,
 
-  loop_break: `// Keep Loop with Stop Break
+  loop_break: `// Loop Iteration with Break Condition
 let count = 0
 keep count < 10 {
     check count == 4 {
-        yap "Reached 4! Breaking out..."
+        yap "Threshold reached at count 4 — terminating loop"
         stop
     }
-    yap "current = " + count
+    yap "Current count: " + count
     count = count + 1
 }`,
 
-  game: `// Number Guessing Game (Interactive Input)
-yap "=== SECRET NUMBER GAME ==="
-let secret = 7
-yap "Enter your secret number guess (1-10):"
-let guess = hear
-
-check guess == secret {
-    yap "W BEHAVIOR! You got it right!"
-} otherwise {
-    yap "L behavior! The secret was 7."
-}`,
-
-  rizz: `// Sigma Rizz Evaluator (Interactive Input)
-yap "What is your name?"
-let name = hear
-
-yap "How many hours of sleep did you get last night?"
-let sleep = hear
-
-yap "How many lines of code did you write today?"
-let code_lines = hear
-
-let score = (sleep * 10) + (code_lines * 2)
-yap "Analyzing user " + name + "..."
-yap "Calculated Rizz Score: " + score
-
-check score >= 100 {
-    yap "Verdict: Absolute Sigma W! Peak Chad energy."
-} otherwise {
-    check score >= 50 {
-        yap "Verdict: Respectable grind. Keep hustling."
-    } otherwise {
-        yap "Verdict: Cooked. Go touch grass immediately."
-    }
-}`,
-
-  error_demo: `// Syntax Error Demo (triggers compiler roast)
+  error_demo: `// Compiler Diagnostic Demo (triggers syntax diagnostic)
 let broken = 42 +
 yap broken`
 };
@@ -121,6 +121,7 @@ let nodeUniqueId = 0;
 const editor = document.getElementById('code-editor');
 const lineGutter = document.getElementById('line-gutter');
 const lineCounter = document.getElementById('line-counter');
+const themeSelect = document.getElementById('theme-select');
 const exampleSelect = document.getElementById('example-select');
 const btnRun = document.getElementById('btn-run');
 const btnVisualize = document.getElementById('btn-visualize');
@@ -151,11 +152,11 @@ const btnModalCancel = document.getElementById('btn-modal-cancel');
 const btnModalClose = document.getElementById('btn-modal-close');
 const toastContainer = document.getElementById('toast-container');
 
-// ── D3 Canvas & Hierarchy Configuration ──
-const CARD_WIDTH = 190;
-const CARD_HEIGHT = 48;
-const DEPTH_SPACING = 250;
-const VERTICAL_SPACING = 64;
+// ── D3 Canvas & Hierarchy Configuration (OpenDesign Engineering Cards) ──
+const CARD_WIDTH = 208;
+const CARD_HEIGHT = 52;
+const DEPTH_SPACING = 270;
+const VERTICAL_SPACING = 72;
 
 const svg = d3.select("#tree-svg");
 const g = svg.append("g").attr("class", "tree-root-group");
@@ -171,25 +172,25 @@ svg.call(zoom).on("dblclick.zoom", null); // Disable double click zoom for bette
 
 const treeLayout = d3.tree().nodeSize([VERTICAL_SPACING, DEPTH_SPACING]);
 
-// ── Node Categories & Visual Tokens ──
+// ── Node Categories & Visual Tokens (OpenDesign Semantic System) ──
 const CATEGORY_MAP = {
-  Program: { cat: 'stmt', label: 'ROOT', color: '#6366f1' },
-  Assign: { cat: 'stmt', label: 'ASSIGN', color: '#a855f7' },
-  Yap: { cat: 'stmt', label: 'YAP', color: '#a855f7' },
-  Check: { cat: 'ctrl', label: 'CHECK', color: '#f59e0b' },
-  Keep: { cat: 'ctrl', label: 'KEEP', color: '#f59e0b' },
-  Stop: { cat: 'ctrl', label: 'STOP', color: '#f59e0b' },
-  Block: { cat: 'stmt', label: 'BLOCK', color: '#8b5cf6' },
-  BinOp: { cat: 'expr', label: 'BINOP', color: '#06b6d4' },
-  UnaryOp: { cat: 'expr', label: 'UNARY', color: '#06b6d4' },
-  Label: { cat: 'expr', label: 'BRANCH', color: '#38bdf8' },
-  Number: { cat: 'lit', label: 'NUM', color: '#10b981' },
-  String: { cat: 'lit', label: 'STR', color: '#10b981' },
-  Bool: { cat: 'lit', label: 'BOOL', color: '#10b981' },
-  Identifier: { cat: 'lit', label: 'IDENT', color: '#14b8a6' },
-  Hear: { cat: 'ctrl', label: 'HEAR', color: '#ec4899' },
-  rule: { cat: 'cst-rule', label: 'RULE', color: '#f43f5e' },
-  terminal: { cat: 'cst-term', label: 'TOKEN', color: '#eab308' }
+  Program:   { cat: 'stmt', label: 'ROOT',       color: '#5e6ad2' },
+  Assign:    { cat: 'stmt', label: 'ASSIGN',     color: '#7170ff' },
+  Yap:       { cat: 'stmt', label: 'OUTPUT',     color: '#7170ff' },
+  Check:     { cat: 'ctrl', label: 'BRANCH',     color: '#f5a623' },
+  Keep:      { cat: 'ctrl', label: 'LOOP',       color: '#f5a623' },
+  Stop:      { cat: 'ctrl', label: 'BREAK',      color: '#eb5757' },
+  Block:     { cat: 'stmt', label: 'BLOCK',      color: '#8a8f98' },
+  BinOp:     { cat: 'expr', label: 'OPERATOR',   color: '#38bdf8' },
+  UnaryOp:   { cat: 'expr', label: 'UNARY',      color: '#38bdf8' },
+  Label:     { cat: 'expr', label: 'BRANCH',     color: '#38bdf8' },
+  Number:    { cat: 'lit',  label: 'NUMERIC',    color: '#27a644' },
+  String:    { cat: 'lit',  label: 'STRING',     color: '#27a644' },
+  Bool:      { cat: 'lit',  label: 'BOOLEAN',    color: '#27a644' },
+  Identifier:{ cat: 'lit',  label: 'IDENTIFIER', color: '#3dd68c' },
+  Hear:      { cat: 'ctrl', label: 'INPUT',      color: '#ff6363' },
+  rule:      { cat: 'cst-rule', label: 'RULE',   color: '#8a8f98' },
+  terminal:  { cat: 'cst-term', label: 'TOKEN',  color: '#eab308' }
 };
 
 function getNodeCategory(d) {
@@ -199,7 +200,7 @@ function getNodeCategory(d) {
     if (type === 'terminal') return CATEGORY_MAP.terminal;
     return CATEGORY_MAP.rule;
   }
-  return CATEGORY_MAP[type] || { cat: 'expr', label: type.toUpperCase() || 'NODE', color: '#06b6d4' };
+  return CATEGORY_MAP[type] || { cat: 'expr', label: type.toUpperCase() || 'NODE', color: '#55b3ff' };
 }
 
 // ── Editor Setup & Line Gutter Synchronization ──
@@ -609,18 +610,18 @@ function displayRunResult(data, elapsedMs) {
   if (!data.success) {
     updateStatus("Execution Failed", true);
     consoleOutput.innerHTML = `
-      <div class="roast-error-card">
-        <div class="roast-header">
-          <svg class="roast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="compiler-diag-card">
+        <div class="diag-header">
+          <svg class="diag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
             <line x1="12" y1="9" x2="12" y2="13"/>
             <line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
-          <span>CHUD ROAST EXCEPTION</span>
-          <span class="roast-badge">HALTED</span>
+          <span>RUNTIME EXCEPTION</span>
+          <span class="diag-badge">HALTED</span>
         </div>
-        <div class="roast-message">${escapeHtml(data.error || "Unknown execution error occurred.")}</div>
-        <div class="roast-quote-bar">&ldquo;The compiler has spoken. Fix the code and elevate your aura.&rdquo; &mdash; CHUD Engine</div>
+        <div class="diag-message">${escapeHtml(data.error || "Runtime execution error occurred.")}</div>
+        <div class="diag-tip-bar">Compiler Diagnostic: Check variable definitions, type compatibility, and control flow conditions.</div>
       </div>
     `;
     outputCountBadge.textContent = '!';
@@ -640,7 +641,7 @@ function displayRunResult(data, elapsedMs) {
       consoleOutput.innerHTML = `
         <div class="log-entry">
           <span class="log-time">${timeStr}</span>
-          <span class="log-info">Program finished successfully with no yap outputs.</span>
+          <span class="log-info">Program finished successfully with no standard output.</span>
         </div>
       `;
       outputCountBadge.textContent = '0';
@@ -655,17 +656,18 @@ function displayParseResult(data) {
   if (!data.success && !data.ast && !data.cst) {
     updateStatus("Parse Error", true);
     consoleOutput.innerHTML = `
-      <div class="roast-error-card">
-        <div class="roast-header">
-          <svg class="roast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="compiler-diag-card">
+        <div class="diag-header">
+          <svg class="diag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <span>PARSER SYNTAX ERROR</span>
+          <span>COMPILER SYNTAX DIAGNOSTIC</span>
+          <span class="diag-badge">SYNTAX ERROR</span>
         </div>
-        <div class="roast-message">${escapeHtml(data.error || "Syntax parsing error.")}</div>
-        <div class="roast-quote-bar">&ldquo;Skill issue detected in AST generation. Check grammar.&rdquo;</div>
+        <div class="diag-message">${escapeHtml(data.error || "Syntax parsing error.")}</div>
+        <div class="diag-tip-bar">Compiler Advisory: Verify statement grammar, matching braces, or missing operator operands.</div>
       </div>
     `;
     activateTab('tab-console');
@@ -893,71 +895,78 @@ function updateTree(source) {
       highlightBranch(d, false);
     });
 
-  // Node Card Background
+  // Node Card Background (High-Precision 6px engineering card)
   nodeEnter.append('rect')
     .attr('class', 'node-card-bg')
     .attr('x', 0)
     .attr('y', -CARD_HEIGHT / 2)
     .attr('width', CARD_WIDTH)
     .attr('height', CARD_HEIGHT)
-    .attr('rx', 7)
-    .attr('ry', 7);
+    .attr('rx', 6)
+    .attr('ry', 6);
 
-  // Left Semantic Accent Strip
+  // Left Semantic Accent Bar (2.5px vertical indicator)
   nodeEnter.append('rect')
     .attr('class', 'node-accent-bar')
     .attr('x', 0)
-    .attr('y', -CARD_HEIGHT / 2)
-    .attr('width', 4)
-    .attr('height', CARD_HEIGHT)
-    .attr('rx', 2)
+    .attr('y', -CARD_HEIGHT / 2 + 4)
+    .attr('width', 2.5)
+    .attr('height', CARD_HEIGHT - 8)
+    .attr('rx', 1.25)
     .attr('fill', d => getNodeCategory(d).color);
 
-  // Category Badge Pill Background
+  // Category Badge Background (Subtle pill)
   nodeEnter.append('rect')
     .attr('class', 'node-badge-rect')
     .attr('x', 10)
-    .attr('y', -CARD_HEIGHT / 2 + 6)
-    .attr('width', 52)
-    .attr('height', 13)
-    .attr('fill', d => {
-      const col = getNodeCategory(d).color;
-      return d3.color(col).copy({ opacity: 0.15 });
-    })
-    .attr('stroke', d => getNodeCategory(d).color)
-    .attr('stroke-width', 0.8);
+    .attr('y', -CARD_HEIGHT / 2 + 9)
+    .attr('width', d => Math.max(34, getNodeCategory(d).label.length * 6 + 10))
+    .attr('height', 14)
+    .attr('rx', 3)
+    .attr('fill', d => getNodeCategory(d).color)
+    .attr('fill-opacity', 0.12);
 
   // Category Badge Text
   nodeEnter.append('text')
     .attr('class', 'node-badge-text')
-    .attr('x', 14)
-    .attr('y', -CARD_HEIGHT / 2 + 16)
+    .attr('x', 15)
+    .attr('y', -CARD_HEIGHT / 2 + 19.5)
     .attr('fill', d => getNodeCategory(d).color)
     .text(d => getNodeCategory(d).label);
 
-  // Line Number Pill
+  // Line & Column Pill Text
   nodeEnter.append('text')
     .attr('class', 'node-line-text')
-    .attr('x', CARD_WIDTH - 14)
-    .attr('y', -CARD_HEIGHT / 2 + 16)
+    .attr('x', CARD_WIDTH - 12)
+    .attr('y', -CARD_HEIGHT / 2 + 19.5)
     .attr('text-anchor', 'end')
     .text(d => d.data.line !== undefined ? `L${d.data.line}` : '');
+
+  // Card Divider Line
+  nodeEnter.append('line')
+    .attr('class', 'node-card-divider')
+    .attr('x1', 10)
+    .attr('y1', -CARD_HEIGHT / 2 + 27)
+    .attr('x2', CARD_WIDTH - 10)
+    .attr('y2', -CARD_HEIGHT / 2 + 27)
+    .attr('stroke', 'rgba(255, 255, 255, 0.06)')
+    .attr('stroke-width', 1);
 
   // Main Node Title
   nodeEnter.append('text')
     .attr('class', 'node-title')
-    .attr('x', 12)
-    .attr('y', 8)
-    .text(d => truncateText(d.data.name || d.data.type || '', 21));
+    .attr('x', 10)
+    .attr('y', 10)
+    .text(d => truncateText(d.data.name || d.data.type || '', 24));
 
   // Node Subtitle / Value Text
   nodeEnter.append('text')
     .attr('class', 'node-subtext')
-    .attr('x', 12)
-    .attr('y', 19)
+    .attr('x', 10)
+    .attr('y', 20)
     .text(d => {
-      if (d.data.value !== undefined) return `val: ${truncateText(String(d.data.value), 20)}`;
-      if (d.data.type && d.data.type !== d.data.name) return truncateText(d.data.type, 21);
+      if (d.data.value !== undefined) return `val: ${truncateText(String(d.data.value), 22)}`;
+      if (d.data.type && d.data.type !== d.data.name) return truncateText(d.data.type, 22);
       return '';
     });
 
@@ -1341,6 +1350,29 @@ window.addEventListener('keydown', (e) => {
     runAndVisualize();
   }
 });
+
+// ── Theme Manager ──
+function initTheme() {
+  const savedTheme = localStorage.getItem('chud_theme') || 'linear';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  if (themeSelect) {
+    themeSelect.value = savedTheme;
+  }
+}
+
+if (themeSelect) {
+  themeSelect.addEventListener('change', (e) => {
+    const chosen = e.target.value;
+    document.documentElement.setAttribute('data-theme', chosen);
+    localStorage.setItem('chud_theme', chosen);
+    showToast(`Applied theme: ${e.target.options[e.target.selectedIndex].text}`);
+    if (rootHierarchy) {
+      updateTree(rootHierarchy);
+    }
+  });
+}
+
+initTheme();
 
 // ── Initial Boot ──
 editor.value = EXAMPLES.showcase;

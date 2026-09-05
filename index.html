@@ -17,9 +17,8 @@
   <!-- Top Studio Header -->
   <header class="studio-header">
     <div class="brand-section">
-      <div class="logo-mark">
+      <div class="logo-mark" title="Custom High-level User Development Language">
         <span class="logo-text">CHUD</span>
-        <span class="logo-pulse"></span>
       </div>
       <div class="title-meta">
         <div class="title-row">
@@ -30,21 +29,36 @@
             <span id="engine-status">Engine Ready</span>
           </span>
         </div>
-        <p class="subtitle">Custom High-level User Development Language — AST/CST Graph & Tree-Walk Cockpit</p>
+        <p class="subtitle">Compiler Architecture &amp; AST/CST Visualization Workbench</p>
       </div>
     </div>
 
     <div class="header-controls">
+      <!-- Mature Theme Switcher -->
+      <div class="select-wrapper">
+        <label for="theme-select" class="sr-only">Color Theme</label>
+        <select id="theme-select" class="studio-select" title="Switch Theme Palette">
+          <option value="linear">Theme: Linear Precision</option>
+          <option value="vercel">Theme: Vercel Geist</option>
+          <option value="raycast">Theme: Raycast Titanium</option>
+          <option value="github">Theme: GitHub Dimmed</option>
+        </select>
+        <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+
+      <!-- Example Programs Select -->
       <div class="select-wrapper">
         <label for="example-select" class="sr-only">Choose Example</label>
         <select id="example-select" class="studio-select" title="Load predefined program">
-          <option value="showcase">Showcase: Full Features</option>
+          <option value="showcase">Overview: Language Syntax Tour</option>
           <option value="game">Interactive: Secret Number Game</option>
-          <option value="rizz">Interactive: Sigma Rizz Evaluator</option>
-          <option value="math">Demo: Math & Variables</option>
-          <option value="branching">Demo: Check & Otherwise</option>
-          <option value="loop_break">Demo: Keep Loop & Stop</option>
-          <option value="error_demo">Roast Demo: Syntax Error</option>
+          <option value="metrics">Interactive: Productivity Calculator</option>
+          <option value="math">Math: Arithmetic &amp; Expressions</option>
+          <option value="branching">Logic: Conditional Branching</option>
+          <option value="loop_break">Control: Loop &amp; Break Flow</option>
+          <option value="error_demo">Diagnostics: Syntax Error Handling</option>
         </select>
         <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
@@ -70,11 +84,11 @@
           <span>Visualize</span>
         </button>
 
-        <button id="btn-all" class="btn btn-primary-gradient" title="Execute program & render syntax graphs simultaneously">
+        <button id="btn-all" class="btn btn-primary" title="Execute program & render syntax graphs simultaneously">
           <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
           </svg>
-          <span>Run & Visualize</span>
+          <span>Run &amp; Visualize</span>
         </button>
       </div>
     </div>
@@ -317,7 +331,9 @@
         </div>
         <div class="hud-divider"></div>
         <div class="hud-item hud-efficiency" id="hud-compactness-container">
-          <span class="hud-glow-icon">⚡</span>
+          <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
           <span class="hud-efficiency-text" id="hud-compactness">AST is ready</span>
         </div>
       </div>
@@ -326,22 +342,13 @@
       <div class="tree-canvas-container" id="tree-container">
         <svg id="tree-svg">
           <defs>
-            <!-- Blueprint Canvas Grid Pattern -->
-            <pattern id="canvas-grid" width="30" height="30" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="0.9" fill="rgba(148, 163, 184, 0.12)"/>
+            <!-- Engineering Canvas Grid Pattern -->
+            <pattern id="canvas-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="0.75" fill="rgba(148, 163, 184, 0.1)"/>
             </pattern>
-            <!-- Neon Glow Filters -->
-            <filter id="neon-glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur"/>
-              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-            </filter>
-            <filter id="neon-glow-purple" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur"/>
-              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-            </filter>
-            <!-- Card Drop Shadow -->
+            <!-- Subtle Crisp Card Drop Shadow -->
             <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="125%">
-              <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+              <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.25"/>
             </filter>
           </defs>
           <rect width="100%" height="100%" fill="url(#canvas-grid)"/>
