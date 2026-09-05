@@ -19,7 +19,7 @@ let won = L
 yap "I am thinking of a secret number between 1 and 10."
 
 keep won == L {
-    yap "Enter your guess: "
+    yap "Enter your secret number guess (1-10): "
     let guess = hear
 
     attempts = attempts + 1

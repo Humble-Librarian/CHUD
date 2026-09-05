@@ -3,109 +3,438 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CHUD Language Studio — Visualizer & Interpreter</title>
+  <title>CHUD Studio — Elite AST / CST Visualizer & Interpreter</title>
+  <!-- Google Fonts: Space Grotesk, Inter, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <!-- D3.js v7 via CDN -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
-<body>
+<body class="studio-body">
+
+  <!-- Top Studio Header -->
   <header class="studio-header">
-    <div class="logo-group">
-      <span class="logo-badge">CHUD</span>
-      <div class="title-wrap">
-        <h1>Custom High-level User Development Language</h1>
-        <p class="subtitle">Zero-bloat AST/CST Visualizer & Tree-Walk Interpreter</p>
+    <div class="brand-section">
+      <div class="logo-mark">
+        <span class="logo-text">CHUD</span>
+        <span class="logo-pulse"></span>
+      </div>
+      <div class="title-meta">
+        <div class="title-row">
+          <h1>CHUD Language Studio</h1>
+          <span class="studio-badge">v1.0.0</span>
+          <span class="status-indicator live">
+            <span class="status-dot"></span>
+            <span id="engine-status">Engine Ready</span>
+          </span>
+        </div>
+        <p class="subtitle">Custom High-level User Development Language — AST/CST Graph & Tree-Walk Cockpit</p>
       </div>
     </div>
-    <div class="header-actions">
-      <label for="example-select" class="sr-only">Examples</label>
-      <select id="example-select" class="control-select">
-        <option value="showcase">Example: Full Showcase</option>
-        <option value="game">Example: Guessing Game (Input)</option>
-        <option value="rizz">Example: Rizz Evaluator (Input)</option>
-        <option value="math">Example: Math & Variables</option>
-        <option value="branching">Example: Check & Otherwise</option>
-        <option value="loop_break">Example: Keep Loop & Stop</option>
-        <option value="error_demo">Example: Syntax Roast Error</option>
-      </select>
-      <button id="btn-run" class="btn btn-primary">▶ Run</button>
-      <button id="btn-visualize" class="btn btn-secondary">🌳 Visualize</button>
-      <button id="btn-all" class="btn btn-accent">⚡ Run & Visualize</button>
+
+    <div class="header-controls">
+      <div class="select-wrapper">
+        <label for="example-select" class="sr-only">Choose Example</label>
+        <select id="example-select" class="studio-select" title="Load predefined program">
+          <option value="showcase">Showcase: Full Features</option>
+          <option value="game">Interactive: Secret Number Game</option>
+          <option value="rizz">Interactive: Sigma Rizz Evaluator</option>
+          <option value="math">Demo: Math & Variables</option>
+          <option value="branching">Demo: Check & Otherwise</option>
+          <option value="loop_break">Demo: Keep Loop & Stop</option>
+          <option value="error_demo">Roast Demo: Syntax Error</option>
+        </select>
+        <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+
+      <div class="action-btn-group">
+        <button id="btn-run" class="btn btn-run" title="Execute program in Tree-Walk Interpreter (Ctrl+Enter)">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="6 3 20 12 6 21 6 3"/>
+          </svg>
+          <span>Run</span>
+          <kbd class="btn-kbd">Ctrl+↵</kbd>
+        </button>
+
+        <button id="btn-visualize" class="btn btn-visualize" title="Generate AST & CST Graph Visualizations">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="3"/>
+            <circle cx="6" cy="19" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <path d="M12 8v4m0 0l-6 4m6-4l6 4"/>
+          </svg>
+          <span>Visualize</span>
+        </button>
+
+        <button id="btn-all" class="btn btn-primary-gradient" title="Execute program & render syntax graphs simultaneously">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span>Run & Visualize</span>
+        </button>
+      </div>
     </div>
   </header>
 
+  <!-- Main Studio Workspace -->
   <main class="studio-workspace">
-    <!-- Left Column: Code Editor + Console/Inspector -->
+    <!-- Left Column: Source Editor & Terminal / Environment Drawer -->
     <section class="panel editor-panel">
+      <!-- Editor Header -->
       <div class="panel-header">
-        <span class="panel-title">Source Code (CHUD)</span>
-        <span class="badge" id="source-status">Ready</span>
-      </div>
-      <div class="editor-wrap">
-        <textarea id="code-editor" spellcheck="false" placeholder="// Write your CHUD code here..."></textarea>
+        <div class="panel-title-group">
+          <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"/>
+            <polyline points="8 6 2 12 8 18"/>
+          </svg>
+          <span class="panel-title">Source Editor</span>
+          <span class="file-tag">main.chud</span>
+        </div>
+        <div class="editor-actions">
+          <span class="stat-pill" id="line-counter">0 lines</span>
+          <button id="btn-copy-code" class="action-icon-btn" title="Copy code to clipboard">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
+          <button id="btn-clear-code" class="action-icon-btn" title="Clear editor">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <!-- Bottom Tabs: Console Output / Variables / Tokens -->
-      <div class="bottom-drawer">
-        <div class="drawer-tabs">
-          <button class="tab-btn active" data-tab="tab-console">Console Output</button>
-          <button class="tab-btn" data-tab="tab-vars">Environment</button>
-          <button class="tab-btn" data-tab="tab-tokens">Token Stream</button>
+      <!-- Editor Canvas with Synchronized Line Gutter -->
+      <div class="editor-viewport">
+        <div class="line-gutter" id="line-gutter" aria-hidden="true"></div>
+        <textarea id="code-editor" spellcheck="false" placeholder="// Write or paste CHUD code here..."></textarea>
+      </div>
+
+      <!-- Bottom Cockpit Drawer -->
+      <div class="bottom-drawer" id="bottom-drawer">
+        <div class="drawer-header">
+          <div class="drawer-tabs" role="tablist">
+            <button class="drawer-tab active" data-tab="tab-console" role="tab" aria-selected="true">
+              <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"/>
+                <line x1="12" y1="19" x2="20" y2="19"/>
+              </svg>
+              <span>Terminal Console</span>
+              <span class="tab-badge" id="output-count-badge">0</span>
+            </button>
+
+            <button class="drawer-tab" data-tab="tab-vars" role="tab" aria-selected="false">
+              <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+              </svg>
+              <span>Environment</span>
+              <span class="tab-badge" id="vars-count-badge">0</span>
+            </button>
+
+            <button class="drawer-tab" data-tab="tab-tokens" role="tab" aria-selected="false">
+              <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+              <span>Token Stream</span>
+              <span class="tab-badge" id="tokens-count-badge">0</span>
+            </button>
+
+            <button class="drawer-tab" data-tab="tab-json" role="tab" aria-selected="false">
+              <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/>
+                <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>
+              </svg>
+              <span>AST / CST JSON</span>
+            </button>
+          </div>
+
+          <div class="drawer-actions">
+            <button id="btn-clear-terminal" class="action-icon-btn" title="Clear console output">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div class="drawer-content">
-          <div id="tab-console" class="tab-pane active">
-            <div id="console-output" class="terminal-log">
-              <span class="log-hint">Click 'Run' or press Ctrl+Enter to execute.</span>
+
+        <!-- Drawer Content Tabs -->
+        <div class="drawer-body">
+          <!-- Terminal Console Tab -->
+          <div id="tab-console" class="tab-content active">
+            <div id="console-output" class="terminal-view">
+              <div class="terminal-welcome">
+                <div class="welcome-tag">CHUD Tree-Walk Interpreter Ready</div>
+                <p>Press <kbd>Ctrl+Enter</kbd> or click <strong>Run &amp; Visualize</strong> to execute the program and inspect output.</p>
+              </div>
             </div>
           </div>
-          <div id="tab-vars" class="tab-pane">
-            <table class="data-table" id="vars-table">
-              <thead>
-                <tr><th>Variable</th><th>Value</th></tr>
-              </thead>
-              <tbody>
-                <tr><td colspan="2" class="empty-hint">No variables defined yet</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div id="tab-tokens" class="tab-pane">
-            <div id="tokens-view" class="token-pills">
-              <span class="empty-hint">Parse or run code to inspect tokens</span>
+
+          <!-- Environment Variables Tab -->
+          <div id="tab-vars" class="tab-content">
+            <div class="table-container">
+              <table class="env-table" id="vars-table">
+                <thead>
+                  <tr>
+                    <th>Identifier</th>
+                    <th>Inferred Type</th>
+                    <th>Runtime Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="3" class="table-empty">Execute a program to inspect bound environment variables.</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+          </div>
+
+          <!-- Token Stream Tab -->
+          <div id="tab-tokens" class="tab-content">
+            <div class="tokens-container">
+              <div id="tokens-view" class="token-grid">
+                <div class="empty-state">Parse code to view interactive lexical token stream.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AST / CST JSON Tab -->
+          <div id="tab-json" class="tab-content">
+            <div class="json-viewer-header">
+              <span class="json-title" id="json-tree-label">Abstract Syntax Tree (AST) JSON</span>
+              <button id="btn-copy-json" class="btn btn-secondary-sm">
+                <svg class="btn-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>Copy JSON</span>
+              </button>
+            </div>
+            <pre id="json-output" class="json-view"><code>// Run or visualize code to inspect tree JSON representation...</code></pre>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Right Column: D3.js Interactive Tree Visualizer -->
+    <!-- Right Column: D3.js Interactive Visualizer Canvas -->
     <section class="panel visualizer-panel">
-      <div class="panel-header">
-        <div class="tree-mode-toggle">
-          <button id="mode-ast" class="mode-btn active">AST (Abstract)</button>
-          <button id="mode-cst" class="mode-btn">CST (Parse Tree)</button>
+      <!-- Visualizer Control Bar -->
+      <div class="panel-header visualizer-toolbar">
+        <div class="mode-toggle-group" role="radiogroup" aria-label="Tree Visualization Mode">
+          <button id="mode-ast" class="mode-pill active" role="radio" aria-checked="true">
+            <span class="mode-dot ast-dot"></span>
+            <span>AST (Abstract)</span>
+          </button>
+          <button id="mode-cst" class="mode-pill" role="radio" aria-checked="false">
+            <span class="mode-dot cst-dot"></span>
+            <span>CST (Parse Tree)</span>
+          </button>
         </div>
-        <div class="tree-controls">
-          <button id="btn-zoom-in" class="icon-btn" title="Zoom In">+</button>
-          <button id="btn-zoom-out" class="icon-btn" title="Zoom Out">−</button>
-          <button id="btn-zoom-reset" class="icon-btn" title="Reset View">↺</button>
-          <button id="btn-toggle-expand" class="btn btn-tiny" title="Expand or collapse all nodes">Collapse All</button>
+
+        <!-- Node Search & Filter Input -->
+        <div class="search-filter-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="node-search" placeholder="Search & filter nodes (e.g. Assign, BinOp, name)..." autocomplete="off" spellcheck="false">
+          <span id="search-count-badge" class="search-badge hidden">0 matches</span>
+          <button id="btn-search-clear" class="search-clear-btn hidden" title="Clear filter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Canvas Navigation & Export Controls -->
+        <div class="canvas-btn-group">
+          <button id="btn-zoom-in" class="canvas-btn" title="Zoom In (+)">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <button id="btn-zoom-out" class="canvas-btn" title="Zoom Out (-)">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <button id="btn-zoom-reset" class="canvas-btn" title="Reset Camera View (↺)">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2v6h-6"/>
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+              <path d="M3 22v-6h6"/>
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+            </svg>
+          </button>
+          <button id="btn-toggle-expand" class="canvas-btn" title="Collapse or expand all branches">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="7 15 12 20 17 15"/>
+              <polyline points="7 9 12 4 17 9"/>
+            </svg>
+          </button>
+          <button id="btn-export-svg" class="canvas-btn" title="Export graph as Vector SVG">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
         </div>
       </div>
 
+      <!-- Tree Statistics HUD -->
+      <div class="tree-hud" id="tree-hud">
+        <div class="hud-item">
+          <span class="hud-label">Nodes</span>
+          <span class="hud-value" id="hud-node-count">0</span>
+        </div>
+        <div class="hud-divider"></div>
+        <div class="hud-item">
+          <span class="hud-label">Max Depth</span>
+          <span class="hud-value" id="hud-depth-count">0</span>
+        </div>
+        <div class="hud-divider"></div>
+        <div class="hud-item">
+          <span class="hud-label">Statements</span>
+          <span class="hud-value" id="hud-stmt-count">0</span>
+        </div>
+        <div class="hud-divider"></div>
+        <div class="hud-item hud-efficiency" id="hud-compactness-container">
+          <span class="hud-glow-icon">⚡</span>
+          <span class="hud-efficiency-text" id="hud-compactness">AST is ready</span>
+        </div>
+      </div>
+
+      <!-- Interactive SVG Canvas -->
       <div class="tree-canvas-container" id="tree-container">
-        <svg id="tree-svg"></svg>
+        <svg id="tree-svg">
+          <defs>
+            <!-- Blueprint Canvas Grid Pattern -->
+            <pattern id="canvas-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="0.9" fill="rgba(148, 163, 184, 0.12)"/>
+            </pattern>
+            <!-- Neon Glow Filters -->
+            <filter id="neon-glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+            <filter id="neon-glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+            <!-- Card Drop Shadow -->
+            <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="125%">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+            </filter>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#canvas-grid)"/>
+        </svg>
+
+        <!-- Floating Glassmorphic Tooltip -->
         <div id="tree-tooltip" class="tooltip hidden"></div>
       </div>
 
+      <!-- Semantic Legend Bar -->
       <div class="legend-bar">
-        <span class="legend-item"><span class="dot stmts"></span> Statement</span>
-        <span class="legend-item"><span class="dot expr"></span> Expression / Op</span>
-        <span class="legend-item"><span class="dot lit"></span> Literal / Leaf</span>
-        <span class="legend-item"><span class="dot cst-rule"></span> Grammar Rule</span>
-        <span class="legend-item"><span class="dot cst-term"></span> Terminal Token</span>
+        <div class="legend-group">
+          <span class="legend-chip" data-category="stmt">
+            <span class="chip-dot dot-stmt"></span>
+            <span>Statement</span>
+          </span>
+          <span class="legend-chip" data-category="expr">
+            <span class="chip-dot dot-expr"></span>
+            <span>Expression / Op</span>
+          </span>
+          <span class="legend-chip" data-category="lit">
+            <span class="chip-dot dot-lit"></span>
+            <span>Literal / Leaf</span>
+          </span>
+          <span class="legend-chip" data-category="ctrl">
+            <span class="chip-dot dot-ctrl"></span>
+            <span>Control Flow</span>
+          </span>
+          <span class="legend-chip" data-category="cst-rule">
+            <span class="chip-dot dot-rule"></span>
+            <span>Grammar Rule</span>
+          </span>
+          <span class="legend-chip" data-category="cst-term">
+            <span class="chip-dot dot-term"></span>
+            <span>Terminal Token</span>
+          </span>
+        </div>
+        <div class="legend-hint">Click cards to collapse &bull; Hover for AST metadata</div>
       </div>
     </section>
   </main>
+
+  <!-- In-App Interactive Input Modal (Replaces window.prompt) -->
+  <div id="input-modal-backdrop" class="modal-backdrop hidden">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-wrap">
+            <svg class="modal-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="modal-title" class="modal-title">Program Input Required</h2>
+            <p class="modal-desc" id="modal-desc">The CHUD interpreter encountered standard input ('hear') statement(s).</p>
+          </div>
+        </div>
+        <button id="btn-modal-close" class="modal-close-btn" title="Cancel Execution (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div id="modal-inputs-list" class="modal-inputs-list">
+          <!-- Dynamically populated input rows -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="modal-shortcuts">
+          <span class="shortcut-tip"><kbd>↵ Enter</kbd> to submit</span>
+          <span class="shortcut-tip"><kbd>Esc</kbd> to cancel</span>
+        </div>
+        <div class="modal-btn-group">
+          <button id="btn-modal-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-modal-submit" class="btn btn-primary-gradient">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>Submit &amp; Execute</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="toast-container"></div>
 
   <script src="app.js"></script>
 </body>

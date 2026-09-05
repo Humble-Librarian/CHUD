@@ -28,7 +28,7 @@ def test_ast_serializer():
     d3_data = ast_to_d3(ast)
     assert d3_data["type"] == "Program"
     assert len(d3_data["children"]) == 2
-    print("✓ Task 1 Passed: AST Serializer")
+    print("[OK] Task 1 Passed: AST Serializer")
 
 def test_cst_generator():
     src = 'check x >= 10 { yap "yes" }'
@@ -46,7 +46,7 @@ def test_cst_generator():
     assert find_token(cst, "CHECK")
     assert find_token(cst, "LBRACE")
     assert find_token(cst, "RBRACE")
-    print("✓ Task 2 Passed: CST Generator captures grammar rules and concrete tokens")
+    print("[OK] Task 2 Passed: CST Generator captures grammar rules and concrete tokens")
 
 def test_interpreter():
     src = '''
@@ -73,13 +73,13 @@ def test_interpreter():
     assert res["variables"]["sum"] == "30"
     assert res["variables"]["count"] == "2"
     assert res["variables"]["flag"] == "W"
-    print("✓ Task 5 Passed: Tree-Walk Interpreter (vars, math, check/otherwise, keep, stop, W/L)")
+    print("[OK] Task 5 Passed: Tree-Walk Interpreter (vars, math, check/otherwise, keep, stop, W/L)")
 
 def test_frontend_files():
     for filename in ["index.html", "style.css", "app.js"]:
         assert os.path.isfile(filename), f"Missing {filename}"
         assert os.path.getsize(filename) > 0, f"Empty {filename}"
-    print("✓ Task 3 Passed: Frontend files exist and are populated")
+    print("[OK] Task 3 Passed: Frontend files exist and are populated")
 
 def test_server():
     port = 8765
@@ -129,7 +129,7 @@ def test_server():
     assert data["output"] == ["99"]
     assert data["ast"] is not None
 
-    print("✓ Task 4 Passed: Server static files and all API endpoints (/api/parse, /api/run, /api/all)")
+    print("[OK] Task 4 Passed: Server static files and all API endpoints (/api/parse, /api/run, /api/all)")
 
 if __name__ == '__main__':
     test_ast_serializer()
@@ -137,4 +137,4 @@ if __name__ == '__main__':
     test_interpreter()
     test_frontend_files()
     test_server()
-    print("\n🎉 ALL 5 TASKS VERIFIED SUCCESSFULLY WITH ZERO BLOAT!")
+    print("\n[CHUD] ALL 5 TASKS VERIFIED SUCCESSFULLY WITH ZERO BLOAT!")
