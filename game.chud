@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
 //  CHUD Program: Number Guessing Game
 //  Demonstrates:
-//    - 'hear' user input
+//    - interactive user input
 //    - 'keep' loop
 //    - 'check' & 'otherwise' branching
 //    - 'stop' loop termination

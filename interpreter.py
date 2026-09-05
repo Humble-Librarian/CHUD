@@ -60,10 +60,11 @@ class Environment:
 
 
 class Interpreter:
-    def __init__(self, input_fn=None):
+    def __init__(self, input_fn=None, stdout_fn=None):
         self.global_env = Environment()
         self.output = []
         self.input_fn = input_fn or input
+        self.stdout_fn = stdout_fn
 
     def stringify(self, val):
         if isinstance(val, bool):
@@ -155,6 +156,8 @@ class Interpreter:
             val = self.eval_expr(node.value, env)
             out_str = self.stringify(val)
             self.output.append(out_str)
+            if self.stdout_fn:
+                self.stdout_fn(out_str)
             return
 
         if isinstance(node, CheckNode):

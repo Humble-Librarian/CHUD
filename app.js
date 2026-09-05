@@ -62,7 +62,7 @@ keep count < 10 {
     count = count + 1
 }`,
 
-  game: `// Number Guessing Game (with 'hear' user input)
+  game: `// Number Guessing Game (Interactive Input)
 yap "=== SECRET NUMBER GAME ==="
 let secret = 7
 yap "Enter your guess: "
@@ -74,7 +74,7 @@ check guess == secret {
     yap "L behavior! The secret was 7."
 }`,
 
-  rizz: `// Sigma Rizz Evaluator (with 'hear' user input)
+  rizz: `// Sigma Rizz Evaluator (Interactive Input)
 yap "What is your name?"
 let name = hear
 
@@ -217,13 +217,42 @@ function updateStatus(text, isError = false) {
 
 function collectInputs(code) {
   const inputs = [];
-  const matches = code.match(/\bhear\b/g);
-  if (matches && matches.length > 0) {
-    for (let i = 0; i < matches.length; i++) {
-      const val = window.prompt(`[CHUD User Input ${i + 1}/${matches.length}]\nEnter value for 'hear':`, "7");
-      inputs.push(val !== null ? val : "0");
+
+  // Strip comments and strings so 'hear' in comments or strings does not trigger prompts!
+  const codeLines = code.split('\n');
+  const hearStatements = [];
+
+  for (let line of codeLines) {
+    // Remove single-line comments
+    const withoutComment = line.replace(/\/\/.*$/, '').trim();
+    if (!withoutComment) continue;
+
+    // Remove string literals
+    const cleanLine = withoutComment.replace(/"[^"\\]*(?:\\.[^"\\]*)*"/g, '""');
+
+    // Check if clean line contains the 'hear' keyword
+    if (/\bhear\b/.test(cleanLine)) {
+      // Try to extract variable name if it's an assignment: let x = hear or x = hear
+      const assignMatch = cleanLine.match(/(?:let\s+)?([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*hear/);
+      const varName = assignMatch ? assignMatch[1] : null;
+      hearStatements.push({ varName, originalLine: withoutComment });
     }
   }
+
+  if (hearStatements.length === 0) return [];
+
+  for (let i = 0; i < hearStatements.length; i++) {
+    const item = hearStatements[i];
+    const promptMsg = item.varName 
+      ? `[CHUD Input ${i + 1}/${hearStatements.length}]\nEnter value for '${item.varName}':`
+      : `[CHUD Input ${i + 1}/${hearStatements.length}]\nEnter user input:`;
+    
+    // Suggest sensible defaults if guess or score
+    const defaultVal = item.varName === 'guess' ? '7' : (item.varName === 'sleep' ? '8' : (item.varName === 'name' ? 'bro' : '10'));
+    const val = window.prompt(promptMsg, defaultVal);
+    inputs.push(val !== null ? val : "0");
+  }
+
   return inputs;
 }
 

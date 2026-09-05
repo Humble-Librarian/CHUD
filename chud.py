@@ -24,15 +24,12 @@ def run_file(filepath):
     try:
         tokens = Lexer(source).tokenize()
         ast = Parser(tokens).parse()
-        interp = Interpreter(input_fn=input)
+        interp = Interpreter(input_fn=input, stdout_fn=print)
         res = interp.run(ast)
 
         if not res["success"]:
             print(res["error"])
             sys.exit(1)
-        else:
-            for line in res["output"]:
-                print(line)
     except (LexerError, ParseError, CHUDRuntimeError) as e:
         print(e)
         sys.exit(1)
