@@ -72,6 +72,10 @@ python test_all.py
 
 For focused work, run `python test_pipeline.py` or `python test_server.py`.
 
+## Learn to write CHUD
+
+New to the language? Start with the [CHUD writing guide](CHUD_GUIDE.md). It walks through variables, output, input, decisions, loops, comments, common mistakes, and a complete mini-program.
+
 ## A first CHUD program
 
 ```chud
