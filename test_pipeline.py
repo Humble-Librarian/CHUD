@@ -4,8 +4,8 @@
 # ─────────────────────────────────────────────
 
 import sys
-from lexer import Lexer
-from parser import Parser
+from lexer import Lexer, LexerError
+from parser import Parser, ParseError
 from ast_serializer import ast_to_d3
 from cst_generator import generate_cst
 from interpreter import Interpreter, interpret
@@ -75,6 +75,49 @@ def test_runtime_errors_are_chud_errors():
     assert "Division by zero" in division_by_zero["error"]
     print("[OK] Runtime type and arithmetic errors are clear CHUD diagnostics")
 
+
+def test_scope_input_and_control_flow():
+    source = '''
+let score = 1
+check W {
+    let local_only = 99
+    score = score + 1
+}
+let answer = hear
+keep W {
+    stop
+}
+yap score + answer
+'''
+    result = interpret(source, input_fn=lambda prompt: "40")
+    assert result["success"] is True, result["error"]
+    assert result["output"] == ["42"]
+    assert result["variables"]["score"] == "2"
+    assert result["variables"]["answer"] == "40"
+    assert "local_only" not in result["variables"]
+
+    outside_stop = interpret("stop")
+    assert outside_stop["success"] is False
+    assert "outside" in outside_stop["error"]
+    print("[OK] Scope, hear input, and stop control flow behave as specified")
+
+
+def test_invalid_source_is_rejected():
+    try:
+        Lexer("let value = @").tokenize()
+        raise AssertionError("Expected LexerError for invalid character")
+    except LexerError:
+        pass
+
+    try:
+        Parser(Lexer("check W { yap 1").tokenize()).parse()
+        raise AssertionError("Expected ParseError for missing closing brace")
+    except ParseError:
+        pass
+    print("[OK] Invalid characters and incomplete blocks are rejected")
+
 if __name__ == '__main__':
     test_full_pipeline()
     test_runtime_errors_are_chud_errors()
+    test_scope_input_and_control_flow()
+    test_invalid_source_is_rejected()
