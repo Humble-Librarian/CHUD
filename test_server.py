@@ -7,11 +7,12 @@ import http.client
 import json
 import threading
 import time
-from server import run_server
+from server import create_server
 
 def test_endpoints():
-    port = 8765
-    server_thread = threading.Thread(target=run_server, args=(port,), daemon=True)
+    httpd = create_server(0)
+    port = httpd.server_port
+    server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     server_thread.start()
     time.sleep(1)
 
@@ -56,7 +57,24 @@ def test_endpoints():
     assert data["output"] == ["sigma"]
     print("[OK] POST /api/all -> 200 OK (Combined compile + run)")
 
+    # Invalid payloads receive actionable 400 responses rather than crashing.
+    conn.request("POST", "/api/run", json.dumps({"code": 42}), headers)
+    res = conn.getresponse()
+    data = json.loads(res.read().decode('utf-8'))
+    assert res.status == 400
+    assert "code" in data["error"]
+    print("[OK] POST /api/run rejects invalid payload types")
+
+    # Static files must not escape the project directory.
+    conn.request("GET", "/../server.py")
+    res = conn.getresponse()
+    res.read()
+    assert res.status == 404
+    print("[OK] GET traversal attempt is rejected")
+
     conn.close()
+    httpd.shutdown()
+    httpd.server_close()
     print("\nALL SERVER ENDPOINTS VERIFIED!")
 
 if __name__ == '__main__':

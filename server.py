@@ -10,7 +10,6 @@ import json
 import mimetypes
 import os
 import sys
-import traceback
 
 from lexer import Lexer, LexerError
 from parser import Parser, ParseError
@@ -20,6 +19,7 @@ from interpreter import Interpreter
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PORT = 8000
+MAX_REQUEST_BYTES = 1_000_000
 
 
 class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
@@ -47,10 +47,14 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
         if req_path == '/' or req_path == '':
             req_path = '/index.html'
 
-        file_path = os.path.normpath(os.path.join(BASE_DIR, req_path.lstrip('/')))
+        file_path = os.path.abspath(os.path.join(BASE_DIR, req_path.lstrip('/')))
 
         # Security check: ensure path is within BASE_DIR
-        if not file_path.startswith(BASE_DIR) or not os.path.isfile(file_path):
+        try:
+            is_local_file = os.path.commonpath([BASE_DIR, file_path]) == BASE_DIR
+        except ValueError:
+            is_local_file = False
+        if not is_local_file or not os.path.isfile(file_path):
             self.send_error(404, f"File Not Found: {req_path}")
             return
 
@@ -71,7 +75,12 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(500, f"Internal Server Error: {str(e)}")
 
     def do_POST(self):
-        content_len = int(self.headers.get('Content-Length', 0))
+        try:
+            content_len = int(self.headers.get('Content-Length', 0))
+        except ValueError:
+            return self._send_json({"success": False, "error": "Invalid Content-Length header."}, 400)
+        if content_len < 0 or content_len > MAX_REQUEST_BYTES:
+            return self._send_json({"success": False, "error": "Request body is too large."}, 413)
         post_data = self.rfile.read(content_len)
 
         try:
@@ -79,8 +88,14 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
         except Exception:
             return self._send_json({"success": False, "error": "Invalid JSON payload."}, 400)
 
+        if not isinstance(payload, dict):
+            return self._send_json({"success": False, "error": "JSON payload must be an object."}, 400)
         code = payload.get("code", "")
-        inputs = list(payload.get("inputs", []))
+        inputs = payload.get("inputs", [])
+        if not isinstance(code, str):
+            return self._send_json({"success": False, "error": "'code' must be a string."}, 400)
+        if not isinstance(inputs, list):
+            return self._send_json({"success": False, "error": "'inputs' must be a list."}, 400)
         req_path = self.path.rstrip('/')
 
         if req_path in ('/api/parse', '/api/compile'):
@@ -118,7 +133,7 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
         except Exception as e:
             return self._send_json({
                 "success": False,
-                "error": f"Internal Error: {str(e)}\n{traceback.format_exc()}"
+                "error": "Internal server error while parsing the program."
             }, 500)
 
     def _handle_run(self, code, inputs=None):
@@ -189,9 +204,13 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
             }, 500)
 
 
+def create_server(port=DEFAULT_PORT):
+    """Create a server instance; callers are responsible for shutting it down."""
+    return http.server.ThreadingHTTPServer(('', port), CHUDRequestHandler)
+
+
 def run_server(port=DEFAULT_PORT):
-    server_address = ('', port)
-    httpd = http.server.ThreadingHTTPServer(server_address, CHUDRequestHandler)
+    httpd = create_server(port)
     print(f"[CHUD] Dev Server running at http://localhost:{port}/")
     print("[CHUD] Zero dependencies. Press Ctrl+C to stop.")
     try:
