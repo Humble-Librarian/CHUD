@@ -31,6 +31,30 @@ CHUD is a custom programming language compiler and interactive runtime environme
 
 ---
 
+## 📐 Language Rules
+
+CHUD is intentionally small and interpreted. These rules describe the current
+implementation so programs behave predictably:
+
+- Statements are separated by whitespace or newlines; semicolons are not used.
+- Names must be declared with `let` before they can be reassigned. A `let` in a
+  `check` or `keep` block is local to that block; assignments can update a name
+  from an outer scope.
+- Arithmetic operators (`-`, `*`, `/`, unary `+` and unary `-`) require numbers.
+  `+` adds two numbers or concatenates when either value is a string.
+- Equality operators compare values directly. Ordering operators (`<`, `<=`,
+  `>`, `>=`) require numbers.
+- `W` and `L` are booleans. Conditions use normal truthiness: `L`, zero, and an
+  empty string are false; other values are true.
+- `hear` reads one value. Numeric input is converted to an integer or float;
+  anything else stays a string. `hear "Prompt: "` optionally supplies a prompt.
+- `stop` exits the nearest `keep` loop. Calling it outside a loop is an error.
+- Strings use double quotes and currently do not support escape sequences.
+- A `keep` loop is stopped after 100,000 iterations to protect the visualizer
+  from accidental infinite loops.
+
+---
+
 ## 🏗️ Architecture Pipeline
 
 ```
@@ -75,12 +99,12 @@ python chud.py
 
 ### 3. Run Automated Tests
 ```bash
-# Verify compiler, parser, AST, CST, and interpreter
-python test_pipeline.py
-
-# Verify server endpoints
-python test_server.py
+# Run the complete suite (pipeline, interpreter, API, and frontend checks)
+python test_all.py
 ```
+
+`test_pipeline.py` and `test_server.py` can also be run independently while
+working on a specific component.
 
 ---
 
