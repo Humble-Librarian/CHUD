@@ -168,6 +168,8 @@ const btnModalSubmit = document.getElementById('btn-modal-submit');
 const btnModalCancel = document.getElementById('btn-modal-cancel');
 const btnModalClose = document.getElementById('btn-modal-close');
 const toastContainer = document.getElementById('toast-container');
+const editorPanel = document.querySelector('.editor-panel');
+const drawerResizeHandle = document.getElementById('drawer-resize-handle');
 
 // ── D3 Canvas & Hierarchy Configuration (OpenDesign Engineering Cards) ──
 const CARD_WIDTH = 208;
@@ -537,6 +539,34 @@ function updateStatus(text, isError = false, isBusy = false) {
 
 // ── API Handlers ──
 
+async function requestApi(path, payload) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(`The local server returned an unreadable response (${response.status}).`);
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || `The local server returned HTTP ${response.status}.`);
+  }
+  return data;
+}
+
+function connectionFailure() {
+  return {
+    success: false,
+    connectionError: true,
+    error: 'CHUD Studio could not reach its local Python server.'
+  };
+}
+
 async function runCode() {
   const inputs = await resolveInputsIfNeeded();
   if (inputs === null) {
@@ -549,16 +579,12 @@ async function runCode() {
   setButtonLoading(btnRun, true);
 
   try {
-    const res = await fetch('/api/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: editor.value, inputs })
-    });
-    const data = await res.json();
+    const data = await requestApi('/api/run', { code: editor.value, inputs });
     const elapsed = Math.round(performance.now() - startTime);
     displayRunResult(data, elapsed);
   } catch (err) {
-    displayRunResult({ success: false, error: "Network or Server Error: " + err.message }, 0);
+    console.error('CHUD API request failed:', err);
+    displayRunResult(connectionFailure(), 0);
   } finally {
     setButtonLoading(btnRun, false);
   }
@@ -569,16 +595,12 @@ async function visualizeCode() {
   setButtonLoading(btnVisualize, true);
 
   try {
-    const res = await fetch('/api/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: editor.value })
-    });
-    const data = await res.json();
+    const data = await requestApi('/api/parse', { code: editor.value });
     displayParseResult(data);
     updateStatus("Syntax Parsed");
   } catch (err) {
-    displayParseResult({ success: false, error: "Network or Server Error: " + err.message });
+    console.error('CHUD API request failed:', err);
+    displayParseResult(connectionFailure());
   } finally {
     setButtonLoading(btnVisualize, false);
   }
@@ -596,17 +618,13 @@ async function runAndVisualize() {
   setButtonLoading(btnAll, true);
 
   try {
-    const res = await fetch('/api/all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: editor.value, inputs })
-    });
-    const data = await res.json();
+    const data = await requestApi('/api/all', { code: editor.value, inputs });
     const elapsed = Math.round(performance.now() - startTime);
     displayRunResult(data, elapsed);
     displayParseResult(data);
   } catch (err) {
-    displayRunResult({ success: false, error: "Network or Server Error: " + err.message }, 0);
+    console.error('CHUD API request failed:', err);
+    displayRunResult(connectionFailure(), 0);
   } finally {
     setButtonLoading(btnAll, false);
   }
@@ -629,20 +647,23 @@ function displayRunResult(data, elapsedMs) {
   const timeStr = now.toTimeString().split(' ')[0];
 
   if (!data.success) {
-    updateStatus("Execution Failed", true);
+    const isConnectionError = Boolean(data.connectionError);
+    updateStatus(isConnectionError ? "Server unavailable" : "Execution Failed", true);
     consoleOutput.innerHTML = `
-      <div class="compiler-diag-card">
+      <div class="compiler-diag-card ${isConnectionError ? 'connection-diag-card' : ''}">
         <div class="diag-header">
           <svg class="diag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
             <line x1="12" y1="9" x2="12" y2="13"/>
             <line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
-          <span>RUNTIME EXCEPTION</span>
-          <span class="diag-badge">HALTED</span>
+          <span>${isConnectionError ? 'LOCAL SERVER UNAVAILABLE' : 'RUNTIME EXCEPTION'}</span>
+          <span class="diag-badge">${isConnectionError ? 'START SERVER' : 'HALTED'}</span>
         </div>
         <div class="diag-message">${escapeHtml(data.error || "Runtime execution error occurred.")}</div>
-        <div class="diag-tip-bar">Compiler Diagnostic: Check variable definitions, type compatibility, and control flow conditions.</div>
+        <div class="diag-tip-bar">${isConnectionError
+          ? 'Run `python server.py`, then open http://localhost:8000 in your browser. Do not open index.html directly.'
+          : 'Compiler Diagnostic: Check variable definitions, type compatibility, and control flow conditions.'}</div>
       </div>
     `;
     outputCountBadge.textContent = '!';
@@ -674,6 +695,10 @@ function displayRunResult(data, elapsedMs) {
 }
 
 function displayParseResult(data) {
+  if (data.connectionError) {
+    displayRunResult(data, 0);
+    return;
+  }
   if (!data.success && !data.ast && !data.cst) {
     updateStatus("Parse Error", true);
     consoleOutput.innerHTML = `
@@ -1308,6 +1333,63 @@ document.querySelectorAll('.drawer-tab').forEach(tab => {
     activateTab(tab.getAttribute('data-tab'));
   });
 });
+
+// ── Adjustable Console Panel ──
+
+function setDrawerHeight(height) {
+  const panelHeight = editorPanel.clientHeight;
+  const minHeight = 160;
+  const maxHeight = Math.max(minHeight, panelHeight - 210);
+  const nextHeight = Math.round(Math.min(maxHeight, Math.max(minHeight, height)));
+  editorPanel.style.gridTemplateRows = `48px minmax(160px, 1fr) ${nextHeight}px`;
+  localStorage.setItem('chud.drawerHeight', String(nextHeight));
+}
+
+function restoreDrawerHeight() {
+  const savedHeight = Number(localStorage.getItem('chud.drawerHeight'));
+  if (Number.isFinite(savedHeight) && savedHeight > 0) setDrawerHeight(savedHeight);
+}
+
+function currentDrawerHeight() {
+  return document.getElementById('bottom-drawer').clientHeight;
+}
+
+if (drawerResizeHandle) {
+  let resizeStartY = 0;
+  let resizeStartHeight = 0;
+
+  drawerResizeHandle.addEventListener('pointerdown', (event) => {
+    resizeStartY = event.clientY;
+    resizeStartHeight = currentDrawerHeight();
+    drawerResizeHandle.setPointerCapture(event.pointerId);
+    document.body.classList.add('is-resizing-drawer');
+  });
+
+  drawerResizeHandle.addEventListener('pointermove', (event) => {
+    if (!drawerResizeHandle.hasPointerCapture(event.pointerId)) return;
+    setDrawerHeight(resizeStartHeight - (event.clientY - resizeStartY));
+  });
+
+  const stopDrawerResize = (event) => {
+    if (drawerResizeHandle.hasPointerCapture(event.pointerId)) {
+      drawerResizeHandle.releasePointerCapture(event.pointerId);
+    }
+    document.body.classList.remove('is-resizing-drawer');
+  };
+
+  drawerResizeHandle.addEventListener('pointerup', stopDrawerResize);
+  drawerResizeHandle.addEventListener('pointercancel', stopDrawerResize);
+  window.addEventListener('resize', () => setDrawerHeight(currentDrawerHeight()));
+
+  drawerResizeHandle.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const delta = event.key === 'ArrowUp' ? 24 : -24;
+    setDrawerHeight(currentDrawerHeight() + delta);
+  });
+}
+
+restoreDrawerHeight();
 
 // ── Toast System ──
 
