@@ -62,5 +62,19 @@ def test_full_pipeline():
 
     print("\nALL 5 CORE PIPELINE COMPONENTS VERIFIED SUCCESSFULLY!")
 
+
+def test_runtime_errors_are_chud_errors():
+    bad_math = interpret('let greeting = "hello"\nyap greeting - 1')
+    assert bad_math["success"] is False
+    assert "line 2" in bad_math["error"]
+    assert "needs a number" in bad_math["error"]
+
+    division_by_zero = interpret('yap 10 / 0')
+    assert division_by_zero["success"] is False
+    assert "line 1" in division_by_zero["error"]
+    assert "Division by zero" in division_by_zero["error"]
+    print("[OK] Runtime type and arithmetic errors are clear CHUD diagnostics")
+
 if __name__ == '__main__':
     test_full_pipeline()
+    test_runtime_errors_are_chud_errors()

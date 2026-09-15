@@ -76,6 +76,27 @@ class Interpreter:
     def is_truthy(self, val):
         return bool(val)
 
+    def _type_name(self, value):
+        if isinstance(value, bool):
+            return "boolean"
+        if isinstance(value, (int, float)):
+            return "number"
+        if isinstance(value, str):
+            return "string"
+        return type(value).__name__
+
+    def _runtime_error(self, node, message):
+        line = f"line {node.line}: " if getattr(node, "line", None) else ""
+        return CHUDRuntimeError(f"{line}{message}\n→ {roast()}")
+
+    def _require_number(self, value, node, operator):
+        # bool is intentionally excluded even though Python treats it as an int.
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise self._runtime_error(
+                node,
+                f"Operator '{operator}' needs a number, not {self._type_name(value)}."
+            )
+
     def eval_expr(self, node, env):
         if isinstance(node, NumberNode):
             return node.value
@@ -102,6 +123,7 @@ class Interpreter:
 
         if isinstance(node, UnaryOpNode):
             val = self.eval_expr(node.operand, env)
+            self._require_number(val, node, node.op)
             if node.op == '-':
                 return -val
             if node.op == '+':
@@ -115,14 +137,22 @@ class Interpreter:
             if node.op == '+':
                 if isinstance(left, str) or isinstance(right, str):
                     return self.stringify(left) + self.stringify(right)
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 return left + right
             if node.op == '-':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 return left - right
             if node.op == '*':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 return left * right
             if node.op == '/':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 if right == 0:
-                    raise CHUDRuntimeError(f"Division by zero is forbidden.\n→ {roast()}")
+                    raise self._runtime_error(node, "Division by zero is forbidden.")
                 res = left / right
                 return int(res) if isinstance(res, float) and res.is_integer() else res
 
@@ -131,12 +161,20 @@ class Interpreter:
             if node.op == '!=':
                 return left != right
             if node.op == '<':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 return left < right
             if node.op == '<=':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 return left <= right
             if node.op == '>':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 return left > right
             if node.op == '>=':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
                 return left >= right
 
             raise CHUDRuntimeError(f"Unknown binary operator '{node.op}'\n→ {roast()}")
@@ -213,7 +251,7 @@ class Interpreter:
                 "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items()},
                 "error": "Syntax/Runtime error: 'stop' called outside of any 'keep' loop."
             }
-        except (CHUDRuntimeError, Exception) as e:
+        except CHUDRuntimeError as e:
             return {
                 "success": False,
                 "output": self.output,
