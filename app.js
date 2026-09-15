@@ -100,6 +100,23 @@ keep count < 10 {
     count = count + 1
 }`,
 
+  classic_loop: `// Classic For Loop — initializer; condition; update
+loop let i = 0; i < 5; i = i + 1 {
+    yap "Iteration " + i
+}`,
+
+  functions: `// Functions — make, call, and return
+make add(first, second) {
+    return first + second
+}
+
+make announce(total) {
+    yap "Total: " + total
+}
+
+let result = add(4, 6)
+announce(result)`,
+
   error_demo: `// Compiler Diagnostic Demo (triggers syntax diagnostic)
 let broken = 42 +
 yap broken`
@@ -811,7 +828,7 @@ function countStatements(data) {
   if (!data) return 0;
   let count = 0;
   function traverse(n) {
-    if (['Assign', 'Yap', 'Check', 'Keep', 'Stop'].includes(n.type)) count++;
+    if (['Assign', 'Yap', 'Check', 'Keep', 'Loop', 'Function', 'Return', 'Stop'].includes(n.type)) count++;
     if (n.children) n.children.forEach(traverse);
   }
   traverse(data);
