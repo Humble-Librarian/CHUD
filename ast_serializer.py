@@ -7,7 +7,8 @@
 from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
     KeepNode, StopNode, BinOpNode, UnaryOpNode,
-    NumberNode, StringNode, BoolNode, IdentifierNode, HearNode
+    NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
+    LoopNode, FunctionNode, CallNode, ReturnNode
 )
 
 
@@ -77,6 +78,46 @@ def ast_to_d3(node):
             "name": "stop",
             "type": "Stop",
             "line": node.line
+        }
+
+    if isinstance(node, LoopNode):
+        return {
+            "name": "loop",
+            "type": "Loop",
+            "line": node.line,
+            "children": [
+                {"name": "initializer", "type": "Label", "children": [ast_to_d3(node.initializer)]},
+                {"name": "condition", "type": "Label", "children": [ast_to_d3(node.condition)]},
+                {"name": "update", "type": "Label", "children": [ast_to_d3(node.update)]},
+                {"name": f"loop_body ({len(node.body)} stmts)", "type": "Block", "children": [ast_to_d3(s) for s in node.body]}
+            ]
+        }
+
+    if isinstance(node, FunctionNode):
+        return {
+            "name": f"make {node.name}",
+            "type": "Function",
+            "line": node.line,
+            "children": [
+                {"name": "parameters", "type": "Label", "children": [{"name": f"param: {p}", "type": "Identifier"} for p in node.parameters]},
+                {"name": f"function_body ({len(node.body)} stmts)", "type": "Block", "children": [ast_to_d3(s) for s in node.body]}
+            ]
+        }
+
+    if isinstance(node, CallNode):
+        return {
+            "name": f"call {node.name}",
+            "type": "Call",
+            "line": node.line,
+            "children": [ast_to_d3(arg) for arg in node.arguments]
+        }
+
+    if isinstance(node, ReturnNode):
+        return {
+            "name": "return",
+            "type": "Return",
+            "line": node.line,
+            "children": [ast_to_d3(node.value)]
         }
 
     if isinstance(node, BinOpNode):

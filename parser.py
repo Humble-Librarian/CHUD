@@ -5,11 +5,14 @@
 #
 #  Grammar (reference):
 #  program     → statement*
-#  statement   → let_stmt | assign_stmt | check_stmt | keep_stmt | yap_stmt | stop_stmt
+#  statement   → let_stmt | assign_stmt | check_stmt | keep_stmt | loop_stmt | make_stmt | return_stmt | yap_stmt | stop_stmt
 #  let_stmt    → LET IDENTIFIER EQ expression
 #  assign_stmt → IDENTIFIER EQ expression
 #  check_stmt  → CHECK expression LBRACE statement* RBRACE (OTHERWISE LBRACE statement* RBRACE)?
 #  keep_stmt   → KEEP expression LBRACE statement* RBRACE
+#  loop_stmt   → LOOP (let_stmt | assign_stmt) SEMI expression SEMI assign_stmt LBRACE statement* RBRACE
+#  make_stmt   → MAKE IDENTIFIER LPAREN parameters? RPAREN LBRACE statement* RBRACE
+#  return_stmt → RETURN expression
 #  yap_stmt    → YAP expression
 #  stop_stmt   → STOP
 #  expression  → comparison
@@ -107,12 +110,20 @@ class Parser:
             return self.parse_check()
         elif tok.type == 'KEEP':
             return self.parse_keep()
+        elif tok.type == 'LOOP':
+            return self.parse_loop()
+        elif tok.type == 'MAKE':
+            return self.parse_function()
+        elif tok.type == 'RETURN':
+            return self.parse_return()
         elif tok.type == 'YAP':
             return self.parse_yap()
         elif tok.type == 'STOP':
             self.advance()
             return StopNode(line=tok.line)
         elif tok.type == 'ID':
+            if self.tokens[self.pos + 1].type == 'LPAREN':
+                return self.parse_expression()
             return self.parse_assign()
         else:
             raise ParseError(
@@ -219,6 +230,48 @@ class Parser:
         self.expect('RBRACE')
         return KeepNode(condition, body, line=keep_tok.line)
 
+    def parse_loop(self):
+        """loop let i = 0; i < 3; i = i + 1 { ... }"""
+        loop_tok = self.expect('LOOP')
+        if self.check('LET'):
+            initializer = self.parse_let()
+        elif self.check('ID'):
+            initializer = self.parse_assign()
+        else:
+            raise ParseError(
+                f"\n[CHUD ParseError] line {self.peek().line} — "
+                "expected a variable declaration or assignment after 'loop'\n"
+                f"→ {roast()}"
+            )
+        self.expect('SEMI')
+        condition = self.parse_expression()
+        self.expect('SEMI')
+        update = self.parse_assign()
+        self.expect('LBRACE')
+        body = self.parse_block()
+        self.expect('RBRACE')
+        return LoopNode(initializer, condition, update, body, line=loop_tok.line)
+
+    def parse_function(self):
+        make_tok = self.expect('MAKE')
+        name = self.expect('ID').value
+        self.expect('LPAREN')
+        parameters = []
+        if not self.check('RPAREN'):
+            parameters.append(self.expect('ID').value)
+            while self.check('COMMA'):
+                self.advance()
+                parameters.append(self.expect('ID').value)
+        self.expect('RPAREN')
+        self.expect('LBRACE')
+        body = self.parse_block()
+        self.expect('RBRACE')
+        return FunctionNode(name, parameters, body, line=make_tok.line)
+
+    def parse_return(self):
+        return_tok = self.expect('RETURN')
+        return ReturnNode(self.parse_expression(), line=return_tok.line)
+
 
     # ══════════════════════════════════════════
     #  HELPER — parse_block
@@ -321,6 +374,16 @@ class Parser:
 
         if tok.type == 'ID':
             self.advance()
+            if self.check('LPAREN'):
+                self.advance()
+                arguments = []
+                if not self.check('RPAREN'):
+                    arguments.append(self.parse_expression())
+                    while self.check('COMMA'):
+                        self.advance()
+                        arguments.append(self.parse_expression())
+                self.expect('RPAREN')
+                return CallNode(tok.value, arguments, line=tok.line)
             return IdentifierNode(tok.value, line=tok.line)
 
         if tok.type == 'HEAR':

@@ -7,7 +7,8 @@
 from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
     KeepNode, StopNode, BinOpNode, UnaryOpNode,
-    NumberNode, StringNode, BoolNode, IdentifierNode, HearNode
+    NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
+    LoopNode, FunctionNode, CallNode, ReturnNode
 )
 from lexer import Lexer, roast
 from parser import Parser
@@ -16,6 +17,19 @@ from parser import Parser
 class BreakSignal(Exception):
     """Raised by 'stop' statement to break out of keep loops."""
     pass
+
+
+class ReturnSignal(Exception):
+    """Internal control flow used to leave a function with a value."""
+    def __init__(self, value):
+        self.value = value
+
+
+class CHUDFunction:
+    """A user-defined function and the environment it was declared in."""
+    def __init__(self, declaration, closure):
+        self.declaration = declaration
+        self.closure = closure
 
 
 class CHUDRuntimeError(Exception):
@@ -107,6 +121,27 @@ class Interpreter:
         if isinstance(node, IdentifierNode):
             return env.get(node.name)
 
+        if isinstance(node, CallNode):
+            function = env.get(node.name)
+            if not isinstance(function, CHUDFunction):
+                raise self._runtime_error(node, f"'{node.name}' is not a function.")
+            if len(node.arguments) != len(function.declaration.parameters):
+                raise self._runtime_error(
+                    node,
+                    f"Function '{node.name}' expects {len(function.declaration.parameters)} argument(s), "
+                    f"but received {len(node.arguments)}."
+                )
+            values = [self.eval_expr(argument, env) for argument in node.arguments]
+            call_env = Environment(function.closure)
+            for parameter, value in zip(function.declaration.parameters, values):
+                call_env.define(parameter, value)
+            try:
+                for statement in function.declaration.body:
+                    self.execute(statement, call_env)
+            except ReturnSignal as signal:
+                return signal.value
+            return None
+
         if isinstance(node, HearNode):
             prompt = node.prompt if node.prompt is not None else ""
             try:
@@ -182,6 +217,10 @@ class Interpreter:
         raise CHUDRuntimeError(f"Cannot evaluate node {type(node).__name__}\n→ {roast()}")
 
     def execute(self, node, env):
+        if isinstance(node, CallNode):
+            self.eval_expr(node, env)
+            return
+
         if isinstance(node, AssignNode):
             val = self.eval_expr(node.value, env)
             if node.is_declaration:
@@ -224,6 +263,31 @@ class Interpreter:
                     break
             return
 
+        if isinstance(node, LoopNode):
+            # The initializer and its variable live only for this loop.
+            loop_env = Environment(env)
+            self.execute(node.initializer, loop_env)
+            loop_iterations = 0
+            while self.is_truthy(self.eval_expr(node.condition, loop_env)):
+                loop_iterations += 1
+                if loop_iterations > 100000:
+                    raise self._runtime_error(node, "Loop exceeded 100,000 iterations. Infinite loop detected!")
+                try:
+                    body_env = Environment(loop_env)
+                    for stmt in node.body:
+                        self.execute(stmt, body_env)
+                except BreakSignal:
+                    break
+                self.execute(node.update, loop_env)
+            return
+
+        if isinstance(node, FunctionNode):
+            env.define(node.name, CHUDFunction(node, env))
+            return
+
+        if isinstance(node, ReturnNode):
+            raise ReturnSignal(self.eval_expr(node.value, env))
+
         if isinstance(node, StopNode):
             raise BreakSignal()
 
@@ -241,21 +305,28 @@ class Interpreter:
             return {
                 "success": True,
                 "output": self.output,
-                "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items()},
+                "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items() if not isinstance(v, CHUDFunction)},
                 "error": None
             }
         except BreakSignal:
             return {
                 "success": False,
                 "output": self.output,
-                "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items()},
+                "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items() if not isinstance(v, CHUDFunction)},
                 "error": "Syntax/Runtime error: 'stop' called outside of any 'keep' loop."
+            }
+        except ReturnSignal:
+            return {
+                "success": False,
+                "output": self.output,
+                "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items() if not isinstance(v, CHUDFunction)},
+                "error": "Syntax/Runtime error: 'return' called outside of any 'make' function."
             }
         except CHUDRuntimeError as e:
             return {
                 "success": False,
                 "output": self.output,
-                "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items()},
+                "variables": {k: self.stringify(v) for k, v in self.global_env.all_bindings().items() if not isinstance(v, CHUDFunction)},
                 "error": str(e)
             }
 

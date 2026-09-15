@@ -36,6 +36,9 @@ KEYWORDS = {
     'W'        : 'W',           # true
     'L'        : 'L',           # false
     'hear'     : 'HEAR',        # input
+    'loop'     : 'LOOP',        # classic for loop
+    'make'     : 'MAKE',        # function declaration
+    'return'   : 'RETURN',      # function return
 }
 
 
@@ -65,6 +68,8 @@ TOKEN_PATTERNS = [
     ('RPAREN',  re.compile(r'\)')),               # )
     ('LBRACE',  re.compile(r'\{')),               # {
     ('RBRACE',  re.compile(r'\}')),               # }
+    ('COMMA',   re.compile(r',')),                # ,
+    ('SEMI',    re.compile(r';')),                 # ; (used by loop headers)
     ('ID',      re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')),  # variable names & keywords
 ]
 

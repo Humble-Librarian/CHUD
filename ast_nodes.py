@@ -141,6 +141,52 @@ class StopNode:
         return "Stop()"
 
 
+class LoopNode:
+    """Classic for loop: loop initializer; condition; update { body }."""
+    def __init__(self, initializer, condition, update, body, line=None):
+        self.initializer = initializer
+        self.condition = condition
+        self.update = update
+        self.body = body
+        self.line = line
+
+    def __repr__(self):
+        return f"Loop(body={len(self.body)} stmts)"
+
+
+class FunctionNode:
+    """Function declaration: make name(parameters) { body }."""
+    def __init__(self, name, parameters, body, line=None):
+        self.name = name
+        self.parameters = parameters
+        self.body = body
+        self.line = line
+
+    def __repr__(self):
+        return f"Function({self.name}, {len(self.parameters)} params)"
+
+
+class CallNode:
+    """Function call expression: name(arguments)."""
+    def __init__(self, name, arguments, line=None):
+        self.name = name
+        self.arguments = arguments
+        self.line = line
+
+    def __repr__(self):
+        return f"Call({self.name}, {len(self.arguments)} args)"
+
+
+class ReturnNode:
+    """Function return statement: return expression."""
+    def __init__(self, value, line=None):
+        self.value = value
+        self.line = line
+
+    def __repr__(self):
+        return f"Return({self.value})"
+
+
 class ProgramNode:
     """Root node — the entire CHUD program.
     Contains a list of top-level statements.

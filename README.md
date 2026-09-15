@@ -22,7 +22,7 @@ It was created to practice and demonstrate:
 
 | Area | What CHUD supports today |
 | --- | --- |
-| Language | Variables, numbers, strings, booleans, arithmetic, comparisons, conditionals, loops, input, output, and loop breaks |
+| Language | Variables, numbers, strings, booleans, arithmetic, comparisons, conditionals, while and classic `for` loops, functions, input, output, and loop breaks |
 | Frontend | Source editor, AST/CST explorer, token stream, console, variable inspector, zoom/pan, search, themes, and examples |
 | Runtime | Lexical block scoping, input conversion, output capture, type diagnostics, division-by-zero protection, and loop-iteration protection |
 | API | Python standard-library server with `/api/parse`, `/api/run`, `/api/all`, and `/api/compile` endpoints |
@@ -164,6 +164,31 @@ keep W {
 
 The interpreter stops a loop after 100,000 iterations to protect the browser workspace from accidental infinite loops.
 
+For a classic `for` loop, use `loop`; this keeps it distinct from the `keep` while-loop syntax.
+
+```chud
+loop let i = 0; i < 3; i = i + 1 {
+    yap i
+}
+```
+
+The loop initializer is scoped to the loop. `stop` exits either type of loop.
+
+### Functions
+
+Declare a function with `make`, call it with parentheses, and use `return` to produce a value.
+
+```chud
+make add(first, second) {
+    return first + second
+}
+
+let total = add(4, 6)
+yap total
+```
+
+Parameters and variables declared inside a function are local to that call. A function must be declared before it is called, and `return` is only valid inside a function.
+
 ### Comments and current limits
 
 ```chud
@@ -171,7 +196,7 @@ The interpreter stops a loop after 100,000 iterations to protect the browser wor
 let score = 10
 ```
 
-Strings use double quotes and do not yet support escape sequences. CHUD does not yet have functions, arrays, modules, classes, static type checking, or code generation.
+Strings use double quotes and do not yet support escape sequences. CHUD does not yet have arrays, modules, classes, static type checking, or code generation.
 
 ## Architecture
 

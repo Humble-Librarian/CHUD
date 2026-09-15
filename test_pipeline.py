@@ -116,8 +116,51 @@ def test_invalid_source_is_rejected():
         pass
     print("[OK] Invalid characters and incomplete blocks are rejected")
 
+
+def test_functions_and_classic_loops():
+    source = '''
+make add(first, second) {
+    return first + second
+}
+
+make announce(name) {
+    yap "Hello, " + name
+}
+
+let total = add(4, 6)
+announce("Ava")
+loop let i = 0; i < 3; i = i + 1 {
+    yap i
+}
+yap total
+'''
+    result = interpret(source)
+    assert result["success"] is True, result["error"]
+    assert result["output"] == ["Hello, Ava", "0", "1", "2", "10"]
+    assert result["variables"] == {"total": "10"}
+
+    ast = Parser(Lexer(source).tokenize()).parse()
+    ast_data = ast_to_d3(ast)
+    assert any(child["type"] == "Function" for child in ast_data["children"])
+    assert any(child["type"] == "Loop" for child in ast_data["children"])
+
+    cst = generate_cst(source)
+    def has_token(node, token_type):
+        return node.get("token") == token_type or any(
+            has_token(child, token_type) for child in node.get("children", [])
+        )
+    assert has_token(cst, "MAKE")
+    assert has_token(cst, "LOOP")
+    assert has_token(cst, "SEMI")
+
+    wrong_arity = interpret('make one(value) { return value }\nyap one()')
+    assert wrong_arity["success"] is False
+    assert "expects 1 argument" in wrong_arity["error"]
+    print("[OK] Functions, calls, returns, and classic loop headers work")
+
 if __name__ == '__main__':
     test_full_pipeline()
     test_runtime_errors_are_chud_errors()
     test_scope_input_and_control_flow()
     test_invalid_source_is_rejected()
+    test_functions_and_classic_loops()

@@ -147,6 +147,52 @@ yap "Total: " + (first + second)
 
 In the browser studio, all required inputs appear together in one dialog before the program runs.
 
+## Reusing code with `make`
+
+Use `make` to declare a function. Parameters are written in parentheses and separated by commas. Call a function by writing its name with arguments.
+
+```chud
+make greet(name) {
+    yap "Hello, " + name
+}
+
+greet("Ava")
+```
+
+Use `return` when a function needs to give a value back to its caller.
+
+```chud
+make add(first, second) {
+    return first + second
+}
+
+let total = add(4, 6)
+yap total
+```
+
+Function parameters and variables declared inside a function are local to that function. A function must be declared before it is called, and `return` may only be used inside a `make` block.
+
+## Classic `for` loops with `loop`
+
+`keep` is CHUD's while loop. For a classic initializer-condition-update loop, use `loop` so the two forms stay easy to tell apart.
+
+```chud
+loop let i = 0; i <= 3; i = i + 1 {
+    yap i
+}
+```
+
+The parts are: initialize `i`, keep running while the condition is true, then update `i` after each pass. The loop variable is local to the loop and is not available afterward. `stop` can still leave the loop early.
+
+```chud
+loop let i = 0; i < 10; i = i + 1 {
+    check i == 4 {
+        stop
+    }
+    yap i
+}
+```
+
 ## Comments
 
 Start a comment with `//`. Everything after it on the same line is ignored.
