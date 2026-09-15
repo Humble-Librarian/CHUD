@@ -1,151 +1,249 @@
-# CHUD — Custom High-level User Development Language
-### Problem Statement #6: AST Visualizer Pipeline & Tree-Walk Interpreter
+# CHUD
 
-CHUD is a custom programming language compiler and interactive runtime environment featuring a lexer (Maximal Munch), recursive-descent parser, formal AST/CST derivation generator, tree-walk interpreter, and a browser-based D3.js visualization studio.
+**Custom High-level User Development Language** is a small, educational programming language built to make the journey from source code to execution visible. It includes a lexer, a recursive-descent parser, AST and CST generation, a tree-walk interpreter, and a browser-based visualizer.
 
-![Pipeline Architecture](pipeline.png)
+CHUD is currently an **interpreter project and language-learning tool**. It is not yet a native-code compiler or a production programming language. Compiler work—such as an intermediate representation, bytecode, optimization, and code generation—is planned for a future stage.
 
----
+![CHUD pipeline architecture](pipeline.png)
 
-## 🌟 Language Features
+## Why this project exists
 
-- **Variables & Declarations**:
-  - `let x = 10` (declare)
-  - `x = x + 5` (reassign)
-- **Data Types**:
-  - Integers (`42`), Floats (`3.14`), Strings (`"hello"`), Booleans (`W` = true, `L` = false)
-- **Operators**:
-  - Arithmetic: `+`, `-`, `*`, `/`
-  - Comparisons: `==`, `!=`, `<`, `>`, `<=`, `>=`
-  - Unary: `-x`, `+x`
-  - Automatic string concatenation with `+`
-- **Control Flow**:
-  - Conditionals: `check cond { ... } otherwise { ... }`
-  - Loops: `keep cond { ... }`
-  - Loop break: `stop`
-- **I/O Operations**:
-  - Output: `yap <expr>` (prints to console)
-  - User Input: `hear` (reads input from user with automatic numeric casting)
-- **Roast Error System**:
-  - Diagnostic error handler with Gen-Z and Sigma-quote contextual roasts.
+Most programming languages hide their internals. CHUD exposes them. You can write a short program, inspect its tokens, compare its abstract and concrete syntax trees, and execute it in the same workspace.
 
----
+It was created to practice and demonstrate:
 
-## 📐 Language Rules
+- maximal-munch lexing;
+- recursive-descent parsing and operator precedence;
+- Abstract Syntax Tree (AST) and Concrete Syntax Tree (CST) construction;
+- scoped tree-walk interpretation; and
+- approachable diagnostics with a memorable personality.
 
-CHUD is intentionally small and interpreted. These rules describe the current
-implementation so programs behave predictably:
+## Current capabilities
 
-- Statements are separated by whitespace or newlines; semicolons are not used.
-- Names must be declared with `let` before they can be reassigned. A `let` in a
-  `check` or `keep` block is local to that block; assignments can update a name
-  from an outer scope.
-- Arithmetic operators (`-`, `*`, `/`, unary `+` and unary `-`) require numbers.
-  `+` adds two numbers or concatenates when either value is a string.
-- Equality operators compare values directly. Ordering operators (`<`, `<=`,
-  `>`, `>=`) require numbers.
-- `W` and `L` are booleans. Conditions use normal truthiness: `L`, zero, and an
-  empty string are false; other values are true.
-- `hear` reads one value. Numeric input is converted to an integer or float;
-  anything else stays a string. `hear "Prompt: "` optionally supplies a prompt.
-- `stop` exits the nearest `keep` loop. Calling it outside a loop is an error.
-- Strings use double quotes and currently do not support escape sequences.
-- A `keep` loop is stopped after 100,000 iterations to protect the visualizer
-  from accidental infinite loops.
+| Area | What CHUD supports today |
+| --- | --- |
+| Language | Variables, numbers, strings, booleans, arithmetic, comparisons, conditionals, loops, input, output, and loop breaks |
+| Frontend | Source editor, AST/CST explorer, token stream, console, variable inspector, zoom/pan, search, themes, and examples |
+| Runtime | Lexical block scoping, input conversion, output capture, type diagnostics, division-by-zero protection, and loop-iteration protection |
+| API | Python standard-library server with `/api/parse`, `/api/run`, `/api/all`, and `/api/compile` endpoints |
+| Testing | Pipeline, interpreter behavior, parser/lexer failures, static serving, payload validation, and path-traversal checks |
 
----
+## Quick start
 
-## 🏗️ Architecture Pipeline
+### Requirements
 
-```
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐     ┌────────────────────────┐     ┌───────────────────┐
-│ Source Code Input│ ──▶ │ Lexer (Tokenizer)│ ──▶ │   Parser (RD)    │ ──▶ │ AST Nodes (JSON Export)│ ──▶ │  D3.js Visualizer │
-└──────────────────┘     └──────────────────┘     └──────────────────┘     └────────────────────────┘     └───────────────────┘
-                                   ▲                        ▲                           ▲
-                         [Regex + Maximal Munch]  [BNF Grammar + Precedence]   [AST vs Parse Tree]
-```
+- Python 3.9 or newer
+- A modern browser for the visualizer
 
-1. **Lexer (`lexer.py`)**: Tokenizer enforcing Maximal Munch greedy matching with line tracking and keyword resolution.
-2. **Parser (`parser.py`)**: Recursive descent parser enforcing operator precedence layers.
-3. **AST Nodes (`ast_nodes.py`)**: Clean semantic node representations.
-4. **AST Serializer (`ast_serializer.py`)**: D3.js hierarchical JSON converter.
-5. **CST Generator (`cst_generator.py`)**: Lossless Concrete Syntax Tree (Parse Tree) derivation generator preserving all grammar non-terminals and concrete tokens.
-6. **Interpreter (`interpreter.py`)**: Tree-walk evaluator with lexical block scoping (`Environment`), exception-based break unwinding (`BreakSignal`), and infinite loop protection.
-7. **Web Server & API (`server.py`)**: 100% Python standard library HTTP server (zero pip dependencies) providing REST API endpoints (`/api/parse`, `/api/run`, `/api/all`).
-8. **Visualizer Studio (`index.html`, `style.css`, `app.js`)**: Interactive D3.js web visualizer with dual AST/CST toggle, zoom/pan, collapsible nodes, token stream pills, and live console.
+CHUD uses only the Python standard library. No packages need to be installed.
 
----
+### Open the visualizer
 
-## 🚀 Quick Start
-
-### 1. Web Visualizer Studio
-Run the zero-dependency dev server:
 ```bash
-python server.py 8000
+python server.py
 ```
-Then open your browser at **`http://localhost:8000`**.
 
-### 2. Run CHUD Programs from Terminal (CLI)
+Open <http://localhost:8000>. Choose an example or write a program, then use **Run**, **Visualize**, or **Run & Visualize**.
+
+To use a different port:
+
 ```bash
-# Run the Secret Number Guessing Game
+python server.py 8080
+```
+
+### Run CHUD from the terminal
+
+```bash
 python chud.py game.chud
-
-# Run the Sigma Rizz Evaluator
 python chud.py rizz_calculator.chud
+```
 
-# Start an interactive CHUD REPL
+Start the interactive REPL with:
+
+```bash
 python chud.py
 ```
 
-### 3. Run Automated Tests
+### Run the checks
+
 ```bash
-# Run the complete suite (pipeline, interpreter, API, and frontend checks)
 python test_all.py
 ```
 
-`test_pipeline.py` and `test_server.py` can also be run independently while
-working on a specific component.
+For focused work, run `python test_pipeline.py` or `python test_server.py`.
 
----
-
-## 📄 Example Program (`game.chud`)
+## A first CHUD program
 
 ```chud
-yap "======================================"
-yap "    WELCOME TO THE CHUD GUESSING GAME  "
-yap "======================================"
+let name = hear "What is your name? "
+let score = 8
 
-let secret = 7
-let attempts = 0
-let won = L
+check score >= 5 {
+    yap "W behavior, " + name
+} otherwise {
+    yap "Keep practicing, " + name
+}
+```
 
-yap "I am thinking of a secret number between 1 and 10."
+More runnable examples: [game.chud](game.chud) and [rizz_calculator.chud](rizz_calculator.chud).
 
-keep won == L {
-    yap "Enter your guess: "
-    let guess = hear
+## Language reference
 
-    attempts = attempts + 1
+### Values and variables
 
-    check guess == secret {
-        yap "W BEHAVIOR! You guessed the secret number!"
-        yap "Total attempts taken: " + attempts
-        won = W
-        stop
-    } otherwise {
-        check guess < secret {
-            yap "Too low! Aim higher."
-        } otherwise {
-            yap "Too high! Calm down bro."
-        }
+```chud
+let age = 19
+let ratio = 3.14
+let message = "hello"
+let winning = W
+let losing = L
 
-        check attempts >= 5 {
-            yap "L behavior! You ran out of attempts."
-            yap "The secret number was: " + secret
-            stop
-        }
-    }
+age = age + 1
+```
+
+- `let` declares a variable.
+- A variable must be declared before it can be reassigned.
+- `W` is true and `L` is false.
+- Names declared inside a `check` or `keep` block are local to that block.
+- Assignments in a nested block can update names declared in an outer scope.
+
+### Input and output
+
+```chud
+yap "Current score: " + score
+let guess = hear "Enter a number: "
+```
+
+`yap` prints an expression. `hear` reads one value; numeric input becomes an integer or float, while other input remains a string.
+
+### Expressions
+
+```chud
+let total = 2 + 3 * 4
+let grouped = (2 + 3) * 4
+let passed = total >= 10
+```
+
+| Operators | Meaning |
+| --- | --- |
+| `==` `!=` `<` `>` `<=` `>=` | Comparisons |
+| `+` `-` | Addition, string concatenation, subtraction |
+| `*` `/` | Multiplication and division |
+| unary `+` unary `-` | Positive and negative values |
+
+Operators are listed from lower to higher precedence. Arithmetic requires numbers, except `+`, which concatenates when either side is a string. Ordering comparisons require numbers. Parentheses control evaluation order.
+
+### Conditions and loops
+
+```chud
+check age >= 18 {
+    yap "adult"
+} otherwise {
+    yap "minor"
 }
 
-yap "Game Over. Thank you for playing CHUD!"
+let count = 0
+keep count < 3 {
+    yap count
+    count = count + 1
+}
 ```
+
+Conditions use normal truthiness: `L`, `0`, and an empty string are false; other values are true. `stop` exits the nearest `keep` loop.
+
+```chud
+keep W {
+    yap "one pass only"
+    stop
+}
+```
+
+The interpreter stops a loop after 100,000 iterations to protect the browser workspace from accidental infinite loops.
+
+### Comments and current limits
+
+```chud
+// This is a single-line comment
+let score = 10
+```
+
+Strings use double quotes and do not yet support escape sequences. CHUD does not yet have functions, arrays, modules, classes, static type checking, or code generation.
+
+## Architecture
+
+```text
+CHUD source
+    |
+    v
+Lexer --------------> token stream
+    |
+    v
+Recursive-descent parser
+    |                 \
+    v                  v
+AST ----------------> tree-walk interpreter
+    |                  |
+    v                  v
+AST serializer       output + visible variables
+    |
+    v
+Browser visualizer (AST, CST, tokens, console)
+```
+
+### Project map
+
+| File | Responsibility |
+| --- | --- |
+| `lexer.py` | Tokenizes CHUD source and tracks line numbers |
+| `parser.py` | Builds an AST with recursive descent parsing |
+| `ast_nodes.py` | Defines AST node structures |
+| `ast_serializer.py` | Converts AST nodes to visualizer JSON |
+| `cst_generator.py` | Produces a CST for grammar inspection |
+| `interpreter.py` | Evaluates the AST in scoped environments |
+| `server.py` | Serves the studio and exposes the JSON API |
+| `chud.py` | CLI file runner and REPL |
+| `index.html`, `style.css`, `app.js` | Browser studio |
+| `test_pipeline.py`, `test_server.py`, `test_all.py` | Automated checks |
+
+## HTTP API
+
+Requests use JSON with a `code` string and, for execution, an optional `inputs` list.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/parse` | Returns tokens, AST data, and CST data without execution |
+| `POST /api/compile` | Alias for `/api/parse` |
+| `POST /api/run` | Executes code and returns output, variables, and errors |
+| `POST /api/all` | Parses and executes code in one request |
+
+Example request:
+
+```json
+{
+  "code": "let score = 4\nyap score + 1",
+  "inputs": []
+}
+```
+
+The server validates JSON bodies and request shapes, caps request size at 1 MB, and serves only files within the project directory.
+
+## Error handling
+
+CHUD catches lexical, parsing, and runtime errors and includes the relevant line when available. Its “roast” messages are part of the project personality, but the actual error is stated first.
+
+Handled errors include unexpected characters, malformed syntax, missing braces or values, undeclared variables, invalid numeric operations, division by zero, and `stop` outside a loop.
+
+## Roadmap
+
+The current milestone is complete as an interpreter and visualizer. After the semester, possible next stages are:
+
+1. functions and collections;
+2. a formal grammar and richer source-span diagnostics;
+3. an intermediate representation (IR) or bytecode format;
+4. a bytecode virtual machine or compiler backend;
+5. static analysis, types, and optimization; and
+6. packaging and broader automated tests.
+
+## License
+
+CHUD is available under the [MIT License](LICENSE).
