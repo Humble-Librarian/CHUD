@@ -107,17 +107,18 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
         else:
             return self._send_json({"success": False, "error": f"Unknown endpoint '{self.path}'"}, 404)
 
+    def _parse_code(self, code):
+        tokens = Lexer(code).tokenize()
+        token_list = [
+            {"type": t.type, "value": t.value, "line": t.line}
+            for t in tokens if t.type != 'EOF'
+        ]
+        ast = Parser(tokens).parse()
+        return token_list, ast, ast_to_d3(ast), generate_cst(code)
+
     def _handle_parse(self, code):
         try:
-            tokens = Lexer(code).tokenize()
-            token_list = [
-                {"type": t.type, "value": t.value, "line": t.line}
-                for t in tokens if t.type != 'EOF'
-            ]
-            ast = Parser(tokens).parse()
-            ast_d3 = ast_to_d3(ast)
-            cst_d3 = generate_cst(code)
-
+            token_list, ast, ast_d3, cst_d3 = self._parse_code(code)
             return self._send_json({
                 "success": True,
                 "tokens": token_list,
@@ -126,15 +127,9 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
                 "error": None
             })
         except (LexerError, ParseError) as e:
-            return self._send_json({
-                "success": False,
-                "error": str(e)
-            }, 200)
-        except Exception as e:
-            return self._send_json({
-                "success": False,
-                "error": "Internal server error while parsing the program."
-            }, 500)
+            return self._send_json({"success": False, "error": str(e)}, 200)
+        except Exception:
+            return self._send_json({"success": False, "error": "Internal server error while parsing the program."}, 500)
 
     def _handle_run(self, code, inputs=None):
         try:
@@ -144,34 +139,15 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
             def web_input(prompt=""):
                 return inp_queue.pop(0) if inp_queue else "0"
             interp = Interpreter(input_fn=web_input)
-            res = interp.run(ast)
-            return self._send_json(res)
+            return self._send_json(interp.run(ast))
         except (LexerError, ParseError) as e:
-            return self._send_json({
-                "success": False,
-                "output": [],
-                "variables": {},
-                "error": str(e)
-            }, 200)
+            return self._send_json({"success": False, "output": [], "variables": {}, "error": str(e)}, 200)
         except Exception as e:
-            return self._send_json({
-                "success": False,
-                "output": [],
-                "variables": {},
-                "error": f"Internal Error: {str(e)}"
-            }, 500)
+            return self._send_json({"success": False, "output": [], "variables": {}, "error": f"Internal Error: {str(e)}"}, 500)
 
     def _handle_all(self, code, inputs=None):
         try:
-            tokens = Lexer(code).tokenize()
-            token_list = [
-                {"type": t.type, "value": t.value, "line": t.line}
-                for t in tokens if t.type != 'EOF'
-            ]
-            ast = Parser(tokens).parse()
-            ast_d3 = ast_to_d3(ast)
-            cst_d3 = generate_cst(code)
-
+            token_list, ast, ast_d3, cst_d3 = self._parse_code(code)
             inp_queue = list(inputs or [])
             def web_input(prompt=""):
                 return inp_queue.pop(0) if inp_queue else "0"
@@ -188,20 +164,9 @@ class CHUDRequestHandler(http.server.BaseHTTPRequestHandler):
                 "error": run_res["error"]
             })
         except (LexerError, ParseError) as e:
-            return self._send_json({
-                "success": False,
-                "tokens": [],
-                "ast": None,
-                "cst": None,
-                "output": [],
-                "variables": {},
-                "error": str(e)
-            }, 200)
+            return self._send_json({"success": False, "tokens": [], "ast": None, "cst": None, "output": [], "variables": {}, "error": str(e)}, 200)
         except Exception as e:
-            return self._send_json({
-                "success": False,
-                "error": f"Internal Error: {str(e)}"
-            }, 500)
+            return self._send_json({"success": False, "error": f"Internal Error: {str(e)}"}, 500)
 
 
 def create_server(port=DEFAULT_PORT):

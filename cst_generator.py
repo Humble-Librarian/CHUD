@@ -42,40 +42,40 @@ class CSTParser(Parser):
         return result
 
 
-# Wrap grammar rule methods so they record non-terminal derivation nodes
-RULE_METHODS = [
-    ('parse_statement', 'statement'),
-    ('parse_let', 'let_stmt'),
-    ('parse_assign', 'assign_stmt'),
-    ('parse_yap', 'yap_stmt'),
-    ('parse_check', 'check_stmt'),
-    ('parse_keep', 'keep_stmt'),
-    ('parse_loop', 'loop_stmt'),
-    ('parse_function', 'make_stmt'),
-    ('parse_return', 'return_stmt'),
-    ('parse_block', 'block'),
-    ('parse_expression', 'expression'),
-    ('parse_comparison', 'comparison'),
-    ('parse_term', 'term'),
-    ('parse_factor', 'factor'),
-    ('parse_unary', 'unary'),
-    ('parse_primary', 'primary'),
-]
+RULE_MAPPING = {
+    'parse_statement': 'statement',
+    'parse_let': 'let_stmt',
+    'parse_assign': 'assign_stmt',
+    'parse_yap': 'yap_stmt',
+    'parse_check': 'check_stmt',
+    'parse_keep': 'keep_stmt',
+    'parse_loop': 'loop_stmt',
+    'parse_function': 'make_stmt',
+    'parse_return': 'return_stmt',
+    'parse_block': 'block',
+    'parse_expression': 'expression',
+    'parse_comparison': 'comparison',
+    'parse_term': 'term',
+    'parse_factor': 'factor',
+    'parse_unary': 'unary',
+    'parse_primary': 'primary',
+}
 
+def _add_rule_trackers(cls):
+    for method_name, rule_name in RULE_MAPPING.items():
+        orig = getattr(Parser, method_name)
+        def make_wrapper(orig_fn, r_name):
+            def wrapped(self, *args, **kwargs):
+                self._enter(r_name)
+                try:
+                    return orig_fn(self, *args, **kwargs)
+                finally:
+                    self._exit()
+            return wrapped
+        setattr(cls, method_name, make_wrapper(orig, rule_name))
+    return cls
 
-def _wrap_rule(method_name, rule_name):
-    orig = getattr(Parser, method_name)
-    def wrapped(self, *args, **kwargs):
-        self._enter(rule_name)
-        try:
-            return orig(self, *args, **kwargs)
-        finally:
-            self._exit()
-    return wrapped
-
-
-for method_name, rule_name in RULE_METHODS:
-    setattr(CSTParser, method_name, _wrap_rule(method_name, rule_name))
+_add_rule_trackers(CSTParser)
 
 
 def generate_cst(source_or_tokens):
