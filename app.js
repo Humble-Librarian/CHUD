@@ -756,38 +756,200 @@ function renderVariables(vars) {
   }).join('');
 }
 
-function renderTokens(tokens) {
-  tokensCountBadge.textContent = String(tokens.length);
+// ── Lexical Tokens State & Rich Table Engine ──
+let currentTokensData = [];
+let tokenCategoryFilter = 'all';
+let tokenSearchFilter = '';
+let tokenViewMode = 'table';
 
-  if (!tokens || tokens.length === 0) {
-    tokensView.innerHTML = `<div class="empty-state">No tokens available.</div>`;
+function getTokenCategoryInfo(type) {
+  const t = (type || '').toUpperCase();
+  if (['LET', 'CHECK', 'OTHERWISE', 'KEEP', 'STOP', 'YAP', 'HEAR', 'MAKE', 'RETURN', 'FUNCTION'].includes(t)) {
+    return { cat: 'kw', label: 'Keyword' };
+  }
+  if (t === 'IDENTIFIER') {
+    return { cat: 'id', label: 'Identifier' };
+  }
+  if (t === 'NUMBER') {
+    return { cat: 'lit', label: 'Numeric Literal' };
+  }
+  if (t === 'STRING') {
+    return { cat: 'lit', label: 'String Literal' };
+  }
+  if (t === 'BOOLEAN') {
+    return { cat: 'lit', label: 'Boolean Literal' };
+  }
+  if (['PLUS', 'MINUS', 'STAR', 'SLASH', 'EQEQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE', 'NOT', 'ASSIGN'].includes(t)) {
+    return { cat: 'op', label: 'Operator' };
+  }
+  return { cat: 'punct', label: 'Delimiter / Syntax' };
+}
+
+function renderTokens(tokens) {
+  currentTokensData = tokens || [];
+  tokensCountBadge.textContent = String(currentTokensData.length);
+  applyTokenFilters();
+}
+
+function applyTokenFilters() {
+  const subtitle = document.getElementById('tokens-subtitle');
+  const tableBody = document.getElementById('tokens-table-body');
+  const pillsView = document.getElementById('tokens-pills-view');
+
+  if (!currentTokensData || currentTokensData.length === 0) {
+    if (subtitle) subtitle.textContent = '0 tokens';
+    if (tableBody) tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Parse code to view interactive lexical token stream.</td></tr>`;
+    if (pillsView) pillsView.innerHTML = `<div class="empty-state">Parse code to view interactive lexical token stream.</div>`;
     return;
   }
 
-  tokensView.innerHTML = tokens.map(t => {
-    let cat = 'punct';
-    const type = t.type || '';
-    if (['LET', 'CHECK', 'OTHERWISE', 'KEEP', 'STOP', 'YAP', 'HEAR'].includes(type)) cat = 'kw';
-    else if (type === 'IDENTIFIER') cat = 'id';
-    else if (['NUMBER', 'STRING', 'BOOLEAN'].includes(type)) cat = 'lit';
-    else if (['PLUS', 'MINUS', 'STAR', 'SLASH', 'EQEQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE', 'NOT', 'ASSIGN'].includes(type)) cat = 'op';
+  const query = tokenSearchFilter.trim().toLowerCase();
+  const filtered = currentTokensData.filter(t => {
+    const info = getTokenCategoryInfo(t.type);
+    if (tokenCategoryFilter !== 'all' && info.cat !== tokenCategoryFilter) {
+      return false;
+    }
+    if (query) {
+      const typeStr = (t.type || '').toLowerCase();
+      const valStr = (t.value !== null && t.value !== undefined ? String(t.value) : '').toLowerCase();
+      const lineStr = String(t.line || 1);
+      const catStr = info.label.toLowerCase();
+      if (!typeStr.includes(query) && !valStr.includes(query) && !lineStr.includes(query) && !catStr.includes(query)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
-    const valStr = t.value !== null && t.value !== undefined ? String(t.value) : '';
-    return `
-      <div class="token-pill-badge ${cat}" data-line="${t.line || 1}" title="Click to scroll to Line ${t.line || 1}">
-        <span class="token-type">${escapeHtml(type)}</span>
-        ${valStr ? `<span class="token-val">${escapeHtml(valStr)}</span>` : ''}
-        <span class="token-line">L${t.line || 1}</span>
-      </div>
-    `;
-  }).join('');
+  if (subtitle) {
+    subtitle.textContent = `${filtered.length} of ${currentTokensData.length} tokens`;
+  }
 
-  // Clicking a token pill highlights the line in the editor
-  tokensView.querySelectorAll('.token-pill-badge').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const line = parseInt(pill.getAttribute('data-line'), 10);
-      highlightEditorLine(line);
-    });
+  // 1. Render Table View
+  if (tableBody) {
+    if (filtered.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">No tokens match filter "${escapeHtml(tokenSearchFilter || tokenCategoryFilter)}".</td></tr>`;
+    } else {
+      tableBody.innerHTML = filtered.map((t, idx) => {
+        const info = getTokenCategoryInfo(t.type);
+        const valStr = t.value !== null && t.value !== undefined ? String(t.value) : '';
+        const lineNum = t.line || 1;
+        const rowIdx = String(idx + 1).padStart(2, '0');
+
+        return `
+          <tr class="token-row" data-line="${lineNum}" title="Click to scroll to Line ${lineNum}">
+            <td class="token-idx">${rowIdx}</td>
+            <td><span class="token-type-pill ${info.cat}">${escapeHtml(t.type || '')}</span></td>
+            <td><code class="token-lexeme">${escapeHtml(valStr || '')}</code></td>
+            <td><span class="token-cat-label">${info.label}</span></td>
+            <td><button class="line-jump-btn" data-line="${lineNum}">L${lineNum}</button></td>
+            <td style="text-align: right;">
+              <button class="copy-cell-btn" data-copy="${escapeHtml(valStr || t.type || '')}" title="Copy token value">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Attach click events
+      tableBody.querySelectorAll('.token-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('.copy-cell-btn') || e.target.closest('.line-jump-btn')) return;
+          const line = parseInt(row.getAttribute('data-line'), 10);
+          highlightEditorLine(line);
+        });
+      });
+
+      tableBody.querySelectorAll('.line-jump-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const line = parseInt(btn.getAttribute('data-line'), 10);
+          highlightEditorLine(line);
+        });
+      });
+
+      tableBody.querySelectorAll('.copy-cell-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const val = btn.getAttribute('data-copy');
+          navigator.clipboard.writeText(val).then(() => {
+            showToast(`Copied token: ${val}`);
+          });
+        });
+      });
+    }
+  }
+
+  // 2. Render Pills View
+  if (pillsView) {
+    if (filtered.length === 0) {
+      pillsView.innerHTML = `<div class="empty-state">No tokens match filter.</div>`;
+    } else {
+      pillsView.innerHTML = filtered.map(t => {
+        const info = getTokenCategoryInfo(t.type);
+        const valStr = t.value !== null && t.value !== undefined ? String(t.value) : '';
+        const lineNum = t.line || 1;
+        return `
+          <div class="token-pill-badge ${info.cat}" data-line="${lineNum}" title="Click to scroll to Line ${lineNum}">
+            <span class="token-type">${escapeHtml(t.type || '')}</span>
+            ${valStr ? `<span class="token-val">${escapeHtml(valStr)}</span>` : ''}
+            <span class="token-line">L${lineNum}</span>
+          </div>
+        `;
+      }).join('');
+
+      pillsView.querySelectorAll('.token-pill-badge').forEach(pill => {
+        pill.addEventListener('click', () => {
+          const line = parseInt(pill.getAttribute('data-line'), 10);
+          highlightEditorLine(line);
+        });
+      });
+    }
+  }
+}
+
+// ── Token Toolbar Event Handlers ──
+const tokenFilterInput = document.getElementById('token-filter-input');
+if (tokenFilterInput) {
+  tokenFilterInput.addEventListener('input', (e) => {
+    tokenSearchFilter = e.target.value;
+    applyTokenFilters();
+  });
+}
+
+document.querySelectorAll('.token-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.token-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tokenCategoryFilter = btn.getAttribute('data-cat') || 'all';
+    applyTokenFilters();
+  });
+});
+
+const btnTokenTable = document.getElementById('btn-token-view-table');
+const btnTokenPills = document.getElementById('btn-token-view-pills');
+const tokensTableView = document.getElementById('tokens-table-view');
+const tokensPillsView = document.getElementById('tokens-pills-view');
+
+if (btnTokenTable && btnTokenPills) {
+  btnTokenTable.addEventListener('click', () => {
+    btnTokenTable.classList.add('active');
+    btnTokenPills.classList.remove('active');
+    if (tokensTableView) tokensTableView.classList.remove('hidden');
+    if (tokensPillsView) tokensPillsView.classList.add('hidden');
+    tokenViewMode = 'table';
+  });
+
+  btnTokenPills.addEventListener('click', () => {
+    btnTokenPills.classList.add('active');
+    btnTokenTable.classList.remove('active');
+    if (tokensTableView) tokensTableView.classList.add('hidden');
+    if (tokensPillsView) tokensPillsView.classList.remove('hidden');
+    tokenViewMode = 'pills';
   });
 }
 
@@ -806,27 +968,230 @@ function highlightEditorLine(lineNum) {
   editor.scrollTop = Math.max(0, (lineNum - 3) * lineHeight);
 }
 
-function updateJsonView() {
-  const data = activeTreeMode === 'ast' ? currentAstData : currentCstData;
-  jsonTreeLabel.textContent = activeTreeMode === 'ast' 
-    ? "Abstract Syntax Tree (AST) JSON" 
-    : "Concrete Parse Tree (CST) JSON";
+// ── Interactive JSON Tree Inspector ──
+let jsonSubmode = 'ast';
+let jsonViewType = 'tree'; // 'tree' or 'raw'
 
-  if (!data) {
-    jsonOutput.innerHTML = `<code>// No tree data loaded yet.</code>`;
-    return;
+function createJsonTreeHtml(key, value, isRoot = false) {
+  if (value === null || value === undefined) {
+    return `<div class="json-tree-row">${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}<span class="json-val-null">null</span></div>`;
   }
-  jsonOutput.innerHTML = `<code>${escapeHtml(JSON.stringify(data, null, 2))}</code>`;
+
+  const type = typeof value;
+  if (type === 'string') {
+    return `<div class="json-tree-row">${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}<span class="json-val-str">"${escapeHtml(value)}"</span></div>`;
+  }
+  if (type === 'number') {
+    return `<div class="json-tree-row">${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}<span class="json-val-num">${value}</span></div>`;
+  }
+  if (type === 'boolean') {
+    return `<div class="json-tree-row">${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}<span class="json-val-bool">${value}</span></div>`;
+  }
+
+  if (Array.isArray(value)) {
+    const count = value.length;
+    if (count === 0) {
+      return `<div class="json-tree-row">${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}<span class="json-bracket">[]</span></div>`;
+    }
+    const childrenHtml = value.map((item, idx) => createJsonTreeHtml(String(idx), item)).join('');
+    return `
+      <div class="json-tree-node">
+        <div class="json-tree-row">
+          <button class="json-tree-toggle" title="Toggle collapse">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          ${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}
+          <span class="json-bracket">[</span>
+          <span class="json-badge-count">${count} items</span>
+        </div>
+        <div class="json-tree-children">${childrenHtml}</div>
+        <div class="json-tree-row"><span class="json-bracket">]</span></div>
+      </div>
+    `;
+  }
+
+  if (type === 'object') {
+    const keys = Object.keys(value);
+    if (keys.length === 0) {
+      return `<div class="json-tree-row">${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}<span class="json-bracket">{}</span></div>`;
+    }
+    const childrenHtml = keys.map(k => createJsonTreeHtml(k, value[k])).join('');
+    return `
+      <div class="json-tree-node">
+        <div class="json-tree-row">
+          <button class="json-tree-toggle" title="Toggle collapse">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          ${key ? `<span class="json-key">${escapeHtml(key)}: </span>` : ''}
+          <span class="json-bracket">{</span>
+          <span class="json-badge-count">${value.type ? value.type : `${keys.length} props`}</span>
+        </div>
+        <div class="json-tree-children">${childrenHtml}</div>
+        <div class="json-tree-row"><span class="json-bracket">}</span></div>
+      </div>
+    `;
+  }
+
+  return `<div class="json-tree-row"><span class="json-val-str">${escapeHtml(String(value))}</span></div>`;
 }
 
-// Copy JSON button
-document.getElementById('btn-copy-json').addEventListener('click', () => {
-  const data = activeTreeMode === 'ast' ? currentAstData : currentCstData;
-  if (!data) return;
-  navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
-    showToast("Tree JSON copied to clipboard!");
+function updateJsonMetrics(data) {
+  const nodesEl = document.getElementById('json-metric-nodes');
+  const depthEl = document.getElementById('json-metric-depth');
+  const sizeEl = document.getElementById('json-metric-size');
+
+  if (!data) {
+    if (nodesEl) nodesEl.textContent = '0 nodes';
+    if (depthEl) depthEl.textContent = 'Depth: 0';
+    if (sizeEl) sizeEl.textContent = '0 KB';
+    return;
+  }
+
+  const nodeCount = countHierarchyNodes(data);
+  const depth = getHierarchyDepth(data);
+  const jsonStr = JSON.stringify(data, null, 2);
+  const sizeKb = (new Blob([jsonStr]).size / 1024).toFixed(1);
+
+  if (nodesEl) nodesEl.textContent = `${nodeCount} nodes`;
+  if (depthEl) depthEl.textContent = `Depth: ${depth}`;
+  if (sizeEl) sizeEl.textContent = `${sizeKb} KB`;
+}
+
+function updateJsonView() {
+  const targetMode = activeTreeMode === 'json' ? jsonSubmode : (activeTreeMode === 'cst' ? 'cst' : 'ast');
+  const data = targetMode === 'cst' ? (currentCstData || currentAstData) : (currentAstData || currentCstData);
+
+  if (jsonTreeLabel) {
+    jsonTreeLabel.textContent = targetMode === 'cst' 
+      ? "Concrete Parse Tree (CST) JSON" 
+      : "Abstract Syntax Tree (AST) JSON";
+  }
+
+  const btnAst = document.getElementById('json-submode-ast');
+  const btnCst = document.getElementById('json-submode-cst');
+  if (btnAst) btnAst.classList.toggle('active', targetMode === 'ast');
+  if (btnCst) btnCst.classList.toggle('active', targetMode === 'cst');
+
+  updateJsonMetrics(data);
+
+  const treeContainer = document.getElementById('json-tree-interactive');
+  if (!data) {
+    if (treeContainer) treeContainer.innerHTML = `<div class="empty-state">No syntax tree data loaded. Run or visualize code first.</div>`;
+    if (jsonOutput) jsonOutput.innerHTML = `<code>// No syntax tree data loaded. Run or visualize code first.</code>`;
+    return;
+  }
+
+  // 1. Render Interactive Tree View
+  if (treeContainer) {
+    treeContainer.innerHTML = createJsonTreeHtml(null, data, true);
+    treeContainer.querySelectorAll('.json-tree-toggle').forEach(toggle => {
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const node = toggle.closest('.json-tree-node');
+        const children = node ? node.querySelector('.json-tree-children') : null;
+        if (children) {
+          const isHidden = children.style.display === 'none';
+          children.style.display = isHidden ? 'block' : 'none';
+          toggle.classList.toggle('collapsed', !isHidden);
+        }
+      });
+    });
+  }
+
+  // 2. Render Raw Code View
+  if (jsonOutput) {
+    jsonOutput.innerHTML = `<code>${escapeHtml(JSON.stringify(data, null, 2))}</code>`;
+  }
+}
+
+// ── JSON Controls & Action Buttons ──
+const btnJsonInteractive = document.getElementById('btn-json-interactive');
+const btnJsonRaw = document.getElementById('btn-json-raw');
+const jsonTreeInteractive = document.getElementById('json-tree-interactive');
+
+if (btnJsonInteractive && btnJsonRaw) {
+  btnJsonInteractive.addEventListener('click', () => {
+    btnJsonInteractive.classList.add('active');
+    btnJsonRaw.classList.remove('active');
+    if (jsonTreeInteractive) jsonTreeInteractive.classList.remove('hidden');
+    if (jsonOutput) jsonOutput.classList.add('hidden');
+    jsonViewType = 'tree';
   });
-});
+
+  btnJsonRaw.addEventListener('click', () => {
+    btnJsonRaw.classList.add('active');
+    btnJsonInteractive.classList.remove('active');
+    if (jsonTreeInteractive) jsonTreeInteractive.classList.add('hidden');
+    if (jsonOutput) jsonOutput.classList.remove('hidden');
+    jsonViewType = 'raw';
+  });
+}
+
+const btnExpandJson = document.getElementById('btn-expand-json');
+if (btnExpandJson) {
+  btnExpandJson.addEventListener('click', () => {
+    if (jsonTreeInteractive) {
+      jsonTreeInteractive.querySelectorAll('.json-tree-children').forEach(c => c.style.display = 'block');
+      jsonTreeInteractive.querySelectorAll('.json-tree-toggle').forEach(t => t.classList.remove('collapsed'));
+    }
+  });
+}
+
+const btnCollapseJson = document.getElementById('btn-collapse-json');
+if (btnCollapseJson) {
+  btnCollapseJson.addEventListener('click', () => {
+    if (jsonTreeInteractive) {
+      jsonTreeInteractive.querySelectorAll('.json-tree-children').forEach(c => c.style.display = 'none');
+      jsonTreeInteractive.querySelectorAll('.json-tree-toggle').forEach(t => t.classList.add('collapsed'));
+    }
+  });
+}
+
+const btnCopyJson = document.getElementById('btn-copy-json');
+if (btnCopyJson) {
+  btnCopyJson.addEventListener('click', () => {
+    const targetMode = activeTreeMode === 'json' ? jsonSubmode : (activeTreeMode === 'cst' ? 'cst' : 'ast');
+    const data = targetMode === 'cst' ? (currentCstData || currentAstData) : (currentAstData || currentCstData);
+    if (!data) return;
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
+      showToast(`${targetMode.toUpperCase()} Tree JSON copied to clipboard!`);
+    });
+  });
+}
+
+const btnDownloadJson = document.getElementById('btn-download-json');
+if (btnDownloadJson) {
+  btnDownloadJson.addEventListener('click', () => {
+    const targetMode = activeTreeMode === 'json' ? jsonSubmode : (activeTreeMode === 'cst' ? 'cst' : 'ast');
+    const data = targetMode === 'cst' ? (currentCstData || currentAstData) : (currentAstData || currentCstData);
+    if (!data) return;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chud_${targetMode}_tree.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Downloaded chud_${targetMode}_tree.json`);
+  });
+}
+
+const btnSubAst = document.getElementById('json-submode-ast');
+const btnSubCst = document.getElementById('json-submode-cst');
+if (btnSubAst) {
+  btnSubAst.addEventListener('click', () => {
+    jsonSubmode = 'ast';
+    updateJsonView();
+  });
+}
+if (btnSubCst) {
+  btnSubCst.addEventListener('click', () => {
+    jsonSubmode = 'cst';
+    updateJsonView();
+  });
+}
 
 // ── Tree Statistics HUD ──
 
@@ -889,10 +1254,32 @@ function updateTreeStats() {
 
 function switchTreeMode(mode) {
   activeTreeMode = mode;
-  document.getElementById('mode-ast').classList.toggle('active', mode === 'ast');
-  document.getElementById('mode-cst').classList.toggle('active', mode === 'cst');
+  ['ast', 'cst', 'tokens', 'json'].forEach(m => {
+    const btn = document.getElementById(`mode-${m}`);
+    if (btn) btn.classList.toggle('active', mode === m);
+  });
+  const svgCanvas = document.getElementById('tree-svg');
+  const tokensTab = document.getElementById('tab-tokens');
+  const jsonTab = document.getElementById('tab-json');
+  const searchBox = document.querySelector('.search-filter-box');
+  const hud = document.getElementById('tree-hud');
+  const legend = document.querySelector('.legend-bar');
+  const canvasBtns = document.querySelector('.canvas-btn-group');
+
+  const isGraph = mode === 'ast' || mode === 'cst';
+
+  if (svgCanvas) svgCanvas.style.display = isGraph ? 'block' : 'none';
+  if (hud) hud.style.display = isGraph ? 'flex' : 'none';
+  if (searchBox) searchBox.style.display = isGraph ? 'flex' : 'none';
+  if (legend) legend.style.display = isGraph ? 'flex' : 'none';
+  if (canvasBtns) canvasBtns.style.display = isGraph ? 'flex' : 'none';
+
+  if (tokensTab) tokensTab.classList.toggle('active', mode === 'tokens');
+  if (jsonTab) jsonTab.classList.toggle('active', mode === 'json');
   updateJsonView();
-  renderCurrentTree();
+  if (isGraph) {
+    renderCurrentTree();
+  }
   updateTreeStats();
 }
 
@@ -1445,6 +1832,8 @@ btnAll.addEventListener('click', runAndVisualize);
 
 document.getElementById('mode-ast').addEventListener('click', () => switchTreeMode('ast'));
 document.getElementById('mode-cst').addEventListener('click', () => switchTreeMode('cst'));
+document.getElementById('mode-tokens').addEventListener('click', () => switchTreeMode('tokens'));
+document.getElementById('mode-json').addEventListener('click', () => switchTreeMode('json'));
 
 // Keyboard Shortcut: Ctrl/Cmd + Enter -> Run & Visualize
 window.addEventListener('keydown', (e) => {
@@ -1456,7 +1845,7 @@ window.addEventListener('keydown', (e) => {
 
 // ── Theme Manager ──
 function initTheme() {
-  const savedTheme = localStorage.getItem('chud_theme') || 'linear';
+  const savedTheme = localStorage.getItem('chud_theme') || 'apple-dark';
   document.documentElement.setAttribute('data-theme', savedTheme);
   if (themeSelect) {
     themeSelect.value = savedTheme;
