@@ -13,11 +13,11 @@ Here is how CHUD source code travels from raw text to execution and visual inspe
 
 ```mermaid
 flowchart TD
-    A["📄 CHUD Source Code\n(game.chud / rizz_calculator.chud)"] --> S1["Stage 1: Lexical Analysis & Tokenization\n(Maximal-Munch Regex Lexer with Line Tracking)"]
-    S1 --> S2["Stage 2: Syntax Analysis & Tree Generation\n(Recursive-Descent Parser → CST & AST)"]
-    S2 --> S3["Stage 3A: Scoped Tree-Walk Interpreter\n(Recursive AST Traversal & Environment Chaining)"]
-    S2 --> S4["Stage 3B: Bytecode Compiler & Stack VM\n(Single-Pass Emitter + Backpatching + Call Frames)"]
-    S3 --> S5["Stage 5: Visual Studio & Web Workbench\n(D3.js Tree Graphs, Token Data Table & Live Scope)"]
+    A["📄 CHUD Source Code<br>(game.chud / rizz_calculator.chud)"] --> S1["Stage 1: Lexical Analysis & Tokenization<br>(Maximal-Munch Regex Lexer with Line Tracking)"]
+    S1 --> S2["Stage 2: Syntax Analysis & Tree Generation<br>(Recursive-Descent Parser → CST & AST)"]
+    S2 --> S3["Stage 3A: Scoped Tree-Walk Interpreter<br>(Recursive AST Traversal & Environment Chaining)"]
+    S2 --> S4["Stage 3B: Bytecode Compiler & Stack VM<br>(Single-Pass Emitter + Backpatching + Call Frames)"]
+    S3 --> S5["Stage 5: Visual Studio & Web Workbench<br>(D3.js Tree Graphs, Token Data Table & Live Scope)"]
     S4 --> S5
 
     style A fill:#313244,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4
@@ -42,14 +42,14 @@ Scan the raw source code text, strip whitespace and comments, and convert the ch
 
 ```mermaid
 flowchart LR
-    Raw["Raw CHUD Code\nlet score = 42"] --> Lexer{"Lexer Loop\n(Maximal Munch)"}
+    Raw["Raw CHUD Code<br>let score = 42"] --> Lexer{"Lexer Loop<br>Maximal Munch"}
     
-    Lexer -- "Whitespace / Comments" --> Skip["⏭️ Ignore & Advance"]
-    Lexer -- "Keywords ('check', 'let', 'make')" --> KW["🏷️ Keyword Token"]
-    Lexer -- "Numbers / Floats ('42', '3.14')" --> Num["🔢 Number/Float Token"]
-    Lexer -- "Strings ('\"hello\"')" --> Str["📝 String Token"]
-    Lexer -- "Operators ('==', '<=', '+')" --> Op["⚡ Operator Token"]
-    Lexer -- "Identifiers ('score')" --> Id["👤 Identifier Token"]
+    Lexer -->|Whitespace / Comments| Skip["⏭️ Ignore & Advance"]
+    Lexer -->|Keywords: check, let, make| KW["🏷️ Keyword Token"]
+    Lexer -->|Numbers / Floats: 42, 3.14| Num["🔢 Number / Float Token"]
+    Lexer -->|Strings: text| Str["📝 String Token"]
+    Lexer -->|Operators: ==, <=, +| Op["⚡ Operator Token"]
+    Lexer -->|Identifiers: score| Id["👤 Identifier Token"]
     
     KW --> Stream["Ordered Token Stream + EOF"]
     Num --> Stream
@@ -77,14 +77,14 @@ Validate the token stream against the formal CHUD grammar using **Recursive Desc
 
 ```mermaid
 flowchart TD
-    Tokens["Token Stream from Lexer"] --> Parser["Recursive-Descent Parser (LL(1))"]
+    Tokens["Token Stream from Lexer"] --> Parser["Recursive-Descent Parser (LL1)"]
     
-    Parser --> GrammarRules["Grammar Rule Handlers:\n• parse_program()\n• parse_statement()\n• parse_expression()\n• parse_comparison()\n• parse_term()\n• parse_factor()\n• parse_unary()\n• parse_primary()"]
+    Parser --> GrammarRules["Grammar Rule Handlers:<br>• parse_program()<br>• parse_statement()<br>• parse_expression()<br>• parse_comparison()<br>• parse_term()<br>• parse_factor()<br>• parse_unary()<br>• parse_primary()"]
     
-    GrammarRules --> CST["🌳 CST Generator\nFull Derivation Tree\n(Retains all punctuation & grammar steps)"]
-    GrammarRules --> AST["🌿 AST Node Builder\nSemantic Tree\n(Clean nodes: Let, BinOp, Function, Check)"]
+    GrammarRules --> CST["🌳 CST Generator<br>Full Derivation Tree<br>(Retains all punctuation & grammar steps)"]
+    GrammarRules --> AST["🌿 AST Node Builder<br>Semantic Tree<br>(Clean nodes: Let, BinOp, Function, Check)"]
     
-    AST --> Serializer["📊 AST Serializer\nD3-ready JSON + Depth & Compaction Metrics"]
+    AST --> Serializer["📊 AST Serializer<br>D3-ready JSON + Depth & Compaction Metrics"]
 ```
 
 #### 💡 How It Works
@@ -108,11 +108,11 @@ Execute the validated program using two fundamentally different runtime paradigm
 flowchart TD
     AST["Validated Abstract Syntax Tree (AST)"] --> Choice{"Execution Mode"}
     
-    Choice -- "Engine A" --> Interp["🏃 Tree-Walk Interpreter (interpreter.py)\n• Evaluates AST nodes recursively\n• Lexical Environment Scope chain\n• Direct expression evaluation"]
+    Choice -->|Engine A| Interp["🏃 Tree-Walk Interpreter (interpreter.py)<br>• Evaluates AST nodes recursively<br>• Lexical Environment Scope chain<br>• Direct expression evaluation"]
     
-    Choice -- "Engine B" --> Comp["⚡ Bytecode Compiler (compiler.py)\n• Emits flat instruction stream (Chunk)\n• Constant pool deduplication\n• Jump backpatching"]
+    Choice -->|Engine B| Comp["⚡ Bytecode Compiler (compiler.py)<br>• Emits flat instruction stream (Chunk)<br>• Constant pool deduplication<br>• Jump backpatching"]
     
-    Comp --> VM["🖥️ Stack-based VM (vm.py)\n• Instruction Pointer (ip)\n• Push/Pop Value Stack\n• Call Frames for functions"]
+    Comp --> VM["🖥️ Stack-based VM (vm.py)<br>• Instruction Pointer (ip)<br>• Push/Pop Value Stack<br>• Call Frames for functions"]
     
     Interp --> Out["Terminal Output + Variable State"]
     VM --> Out
@@ -140,8 +140,8 @@ Flatten complex hierarchical control flow, arithmetic, and lexical function call
 ```mermaid
 flowchart LR
     SubAST["AST: 2 + 3 * 4"] --> Comp["Compiler Visitor"]
-    Comp --> Chk["Chunk Instructions:\n1. OP_CONST (index: 0 -> 2)\n2. OP_CONST (index: 1 -> 3)\n3. OP_CONST (index: 2 -> 4)\n4. OP_MUL\n5. OP_ADD\n6. OP_HALT"]
-    Chk --> VMExec["VM Execution Loop:\n• Push 2\n• Push 3\n• Push 4\n• Pop 4, 3 -> Push 12\n• Pop 12, 2 -> Push 14"]
+    Comp --> Chk["Chunk Instructions:<br>1. OP_CONST 2<br>2. OP_CONST 3<br>3. OP_CONST 4<br>4. OP_MUL<br>5. OP_ADD<br>6. OP_HALT"]
+    Chk --> VMExec["VM Execution Loop:<br>• Push 2<br>• Push 3<br>• Push 4<br>• Pop 4 and 3 => Push 12<br>• Pop 12 and 2 => Push 14"]
 ```
 
 #### 💡 Key VM & Compiler Mechanisms:
@@ -164,12 +164,12 @@ Provide a modern developer studio for real-time visual inspection of compiler st
 
 ```mermaid
 flowchart TD
-    Client["🌐 Browser Frontend (app.js + index.html)"] --> API{"REST JSON Endpoints\n(server.py on port 8000)"}
+    Client["🌐 Browser Frontend (app.js + index.html)"] --> API{"REST JSON Endpoints<br>server.py on port 8000"}
     
-    API -- "POST /api/parse" --> PRes["Returns: Tokens Stream, AST D3 Graph, CST D3 Graph"]
-    API -- "POST /api/compile" --> CRes["Returns: Bytecode Disassembly & Constants Pool"]
-    API -- "POST /api/run" --> RRes["Returns: Execution Output, Active Scope & Diagnostics"]
-    API -- "POST /api/all" --> ARes["Returns: Complete Parse + Compile + Run Composite Payload"]
+    API -->|POST /api/parse| PRes["Returns: Tokens Stream, AST D3 Graph, CST D3 Graph"]
+    API -->|POST /api/compile| CRes["Returns: Bytecode Disassembly & Constants Pool"]
+    API -->|POST /api/run| RRes["Returns: Execution Output, Active Scope & Diagnostics"]
+    API -->|POST /api/all| ARes["Returns: Complete Parse + Compile + Run Composite Payload"]
 ```
 
 #### 💡 Visual Studio Capabilities:
