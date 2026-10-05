@@ -20,6 +20,7 @@ from ast_nodes import (
     NumberNode, StringNode, BoolNode, IdentifierNode,
     CheckNode, KeepNode, LoopNode, StopNode, SkipNode, HearNode,
     FunctionNode, CallNode, ReturnNode,
+    ArrayLiteralNode, IndexAccessNode, IndexAssignNode
 )
 from bytecode import Chunk, OpCode, CHUDFunctionProto
 
@@ -97,6 +98,12 @@ class Compiler:
             return self.compile_bool(node)
         if isinstance(node, IdentifierNode):
             return self.compile_identifier(node)
+        if isinstance(node, ArrayLiteralNode):
+            return self.compile_array_literal(node)
+        if isinstance(node, IndexAccessNode):
+            return self.compile_index_access(node)
+        if isinstance(node, IndexAssignNode):
+            return self.compile_index_assign(node)
 
         raise CompileError(f"Unsupported AST node type: {type(node).__name__}")
 
@@ -396,6 +403,25 @@ class Compiler:
     def compile_identifier(self, node):
         """A variable reference — push its current value."""
         self.chunk.emit(OpCode.LOAD_VAR, node.name, line=node.line)
+
+    def compile_array_literal(self, node):
+        """[e1, e2, ...] — compile each element, then BUILD_LIST count."""
+        for elem in node.elements:
+            self.compile_node(elem)
+        self.chunk.emit(OpCode.BUILD_LIST, len(node.elements), line=node.line)
+
+    def compile_index_access(self, node):
+        """target[index] — push target, push index, then LOAD_INDEX."""
+        self.compile_node(node.target)
+        self.compile_node(node.index)
+        self.chunk.emit(OpCode.LOAD_INDEX, line=node.line)
+
+    def compile_index_assign(self, node):
+        """target[index] = value — push target, push index, push value, then STORE_INDEX."""
+        self.compile_node(node.target)
+        self.compile_node(node.index)
+        self.compile_node(node.value)
+        self.chunk.emit(OpCode.STORE_INDEX, line=node.line)
 
 
 def compile_source(source_code):

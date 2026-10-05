@@ -74,6 +74,8 @@ TOKEN_PATTERNS = [
     ('RPAREN',  re.compile(r'\)')),               # )
     ('LBRACE',  re.compile(r'\{')),               # {
     ('RBRACE',  re.compile(r'\}')),               # }
+    ('LBRACKET',re.compile(r'\[')),               # [
+    ('RBRACKET',re.compile(r'\]')),               # ]
     ('COMMA',   re.compile(r',')),                # ,
     ('SEMI',    re.compile(r';')),                 # ; (used by loop headers)
     ('ID',      re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')),  # variable names & keywords

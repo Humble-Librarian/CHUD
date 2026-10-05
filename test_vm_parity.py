@@ -303,6 +303,83 @@ yap sum_to(50)
     assert_parity(src, "deep recursion with CallFrame stack (depth 50)")
 
 
+def test_array_literal_and_indexing():
+    src = '''
+let items = [10, 20, 30, "hello", W]
+yap items
+yap items[0]
+yap items[3]
+yap items[4]
+'''
+    assert_parity(src, "array literal and element indexing")
+
+
+def test_array_element_mutation():
+    src = '''
+let nums = [1, 2, 3]
+nums[1] = 99
+yap nums
+yap nums[1]
+'''
+    assert_parity(src, "array element assignment / mutation")
+
+
+def test_nested_arrays():
+    src = '''
+let matrix = [[1, 2], [3, 4]]
+yap matrix[0][1]
+yap matrix[1][0]
+matrix[0][1] = 100
+yap matrix
+'''
+    assert_parity(src, "nested multi-dimensional array access & mutation")
+
+
+def test_array_builtins_len_push_pop():
+    src = '''
+let list = [5, 10]
+yap len(list)
+push(list, 15)
+push(list, 20)
+yap len(list)
+yap list
+let removed = pop(list)
+yap removed
+yap list
+'''
+    assert_parity(src, "array built-in functions: len, push, pop")
+
+
+def test_bubble_sort_algorithm():
+    src = '''
+make bubble_sort(arr) {
+    let n = len(arr)
+    loop let i = 0; i < n; i = i + 1 {
+        loop let j = 0; j < n - i - 1; j = j + 1 {
+            check arr[j] > arr[j + 1] {
+                let temp = arr[j]
+                arr[j] = arr[j + 1]
+                arr[j + 1] = temp
+            }
+        }
+    }
+    return arr
+}
+
+let data = [64, 34, 25, 12, 22, 11, 90]
+yap bubble_sort(data)
+'''
+    assert_parity(src, "bubble sort algorithm in CHUD")
+
+
+def test_array_index_out_of_bounds_parity():
+    src = '''
+let small = [1, 2]
+yap small[10]
+'''
+    assert_parity(src, "runtime error: array index out of bounds")
+
+
 if __name__ == '__main__':
     test_straight_line_arithmetic()
     test_string_concat_and_stringify()
@@ -332,6 +409,12 @@ if __name__ == '__main__':
     test_skip_in_classic_for_loop()
     test_function_scoping_and_shadowing()
     test_deep_recursion_stack()
+    test_array_literal_and_indexing()
+    test_array_element_mutation()
+    test_nested_arrays()
+    test_array_builtins_len_push_pop()
+    test_bubble_sort_algorithm()
+    test_array_index_out_of_bounds_parity()
 
     print("\n[CHUD] VM <-> INTERPRETER PARITY FULLY VERIFIED -- bytecode backend is a drop-in match.")
 

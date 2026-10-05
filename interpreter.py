@@ -8,7 +8,8 @@ from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
     KeepNode, StopNode, SkipNode, BinOpNode, UnaryOpNode,
     NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
-    LoopNode, FunctionNode, CallNode, ReturnNode
+    LoopNode, FunctionNode, CallNode, ReturnNode,
+    ArrayLiteralNode, IndexAccessNode, IndexAssignNode
 )
 from lexer import Lexer, roast
 from parser import Parser
@@ -90,6 +91,8 @@ class Interpreter:
             return "W" if val else "L"
         if isinstance(val, float) and val.is_integer():
             return str(int(val))
+        if isinstance(val, list):
+            return "[" + ", ".join(self.stringify(x) for x in val) + "]"
         return str(val)
 
     def is_truthy(self, val):
@@ -102,6 +105,8 @@ class Interpreter:
             return "number"
         if isinstance(value, str):
             return "string"
+        if isinstance(value, list):
+            return "array"
         return type(value).__name__
 
     def _runtime_error(self, node, message):
@@ -127,6 +132,37 @@ class Interpreter:
             return env.get(node.name)
 
         if isinstance(node, CallNode):
+            # Built-in function: len
+            if node.name == 'len':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'len' expects 1 argument, but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                if not isinstance(target, (list, str)):
+                    raise self._runtime_error(node, f"'len' argument must be an array or string, not {self._type_name(target)}.")
+                return len(target)
+
+            # Built-in function: push
+            if node.name == 'push':
+                if len(node.arguments) != 2:
+                    raise self._runtime_error(node, f"'push' expects 2 arguments (array, item), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                item = self.eval_expr(node.arguments[1], env)
+                if not isinstance(target, list):
+                    raise self._runtime_error(node, f"'push' first argument must be an array, not {self._type_name(target)}.")
+                target.append(item)
+                return None
+
+            # Built-in function: pop
+            if node.name == 'pop':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'pop' expects 1 argument (array), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                if not isinstance(target, list):
+                    raise self._runtime_error(node, f"'pop' argument must be an array, not {self._type_name(target)}.")
+                if not target:
+                    raise self._runtime_error(node, "Cannot pop from an empty array.")
+                return target.pop()
+
             function = env.get(node.name)
             if not isinstance(function, CHUDFunction):
                 raise self._runtime_error(node, f"'{node.name}' is not a function.")
@@ -146,6 +182,20 @@ class Interpreter:
             except ReturnSignal as signal:
                 return signal.value
             return None
+
+        if isinstance(node, ArrayLiteralNode):
+            return [self.eval_expr(e, env) for e in node.elements]
+
+        if isinstance(node, IndexAccessNode):
+            target = self.eval_expr(node.target, env)
+            index = self.eval_expr(node.index, env)
+            if not isinstance(target, (list, str)):
+                raise self._runtime_error(node, f"Cannot index into non-array/string type {self._type_name(target)}.")
+            if not isinstance(index, int) or isinstance(index, bool):
+                raise self._runtime_error(node, f"Array index must be an integer, not {self._type_name(index)}.")
+            if index < 0 or index >= len(target):
+                raise self._runtime_error(node, f"Array index out of bounds (index {index}, length {len(target)}).")
+            return target[index]
 
         if isinstance(node, HearNode):
             prompt = node.prompt if node.prompt is not None else ""
@@ -255,6 +305,19 @@ class Interpreter:
                 env.define(node.name, val)
             else:
                 env.assign(node.name, val)
+            return
+
+        if isinstance(node, IndexAssignNode):
+            target = self.eval_expr(node.target, env)
+            index = self.eval_expr(node.index, env)
+            val = self.eval_expr(node.value, env)
+            if not isinstance(target, list):
+                raise self._runtime_error(node, f"Cannot assign index to non-array type {self._type_name(target)}.")
+            if not isinstance(index, int) or isinstance(index, bool):
+                raise self._runtime_error(node, f"Array index must be an integer, not {self._type_name(index)}.")
+            if index < 0 or index >= len(target):
+                raise self._runtime_error(node, f"Array index out of bounds (index {index}, length {len(target)}).")
+            target[index] = val
             return
 
         if isinstance(node, YapNode):

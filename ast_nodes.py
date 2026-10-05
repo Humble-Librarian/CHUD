@@ -196,6 +196,39 @@ class ReturnNode:
         return f"Return({self.value})"
 
 
+class ArrayLiteralNode:
+    """Array/List literal expression: [elem1, elem2, ...]"""
+    def __init__(self, elements, line=None):
+        self.elements = elements    # list of expression nodes
+        self.line     = line
+
+    def __repr__(self):
+        return f"ArrayLiteral({len(self.elements)} elements)"
+
+
+class IndexAccessNode:
+    """Array/List indexing expression: target[index]"""
+    def __init__(self, target, index, line=None):
+        self.target = target        # expression node (e.g. IdentifierNode or nested IndexAccessNode)
+        self.index  = index         # expression node
+        self.line   = line
+
+    def __repr__(self):
+        return f"IndexAccess({self.target}[{self.index}])"
+
+
+class IndexAssignNode:
+    """Array/List indexed assignment statement: target[index] = value"""
+    def __init__(self, target, index, value, line=None):
+        self.target = target        # expression node
+        self.index  = index         # expression node
+        self.value  = value         # expression node
+        self.line   = line
+
+    def __repr__(self):
+        return f"IndexAssign({self.target}[{self.index}] = {self.value})"
+
+
 class ProgramNode:
     """Root node — the entire CHUD program.
     Contains a list of top-level statements.

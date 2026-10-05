@@ -36,6 +36,8 @@ class VM:
             return "W" if val else "L"
         if isinstance(val, float) and val.is_integer():
             return str(int(val))
+        if isinstance(val, list):
+            return "[" + ", ".join(self.stringify(x) for x in val) + "]"
         return str(val)
 
     def is_truthy(self, val):
@@ -48,6 +50,8 @@ class VM:
             return "number"
         if isinstance(value, str):
             return "string"
+        if isinstance(value, list):
+            return "array"
         return type(value).__name__
 
     def _require_number(self, value, line, operator):
@@ -251,6 +255,43 @@ class VM:
                 elif op == OpCode.CALL:
                     fn_name, arg_count = arg
                     args = [stack.pop() for _ in range(arg_count)][::-1]
+
+                    # Built-in function: len
+                    if fn_name == 'len':
+                        if len(args) != 1:
+                            raise VMRuntimeError(f"line {line}: 'len' expects 1 argument, but received {len(args)}.")
+                        target = args[0]
+                        if not isinstance(target, (list, str)):
+                            raise VMRuntimeError(f"line {line}: 'len' argument must be an array or string, not {self._type_name(target)}.\n→ {roast()}")
+                        stack.append(len(target))
+                        frame.ip += 1
+                        continue
+
+                    # Built-in function: push
+                    if fn_name == 'push':
+                        if len(args) != 2:
+                            raise VMRuntimeError(f"line {line}: 'push' expects 2 arguments (array, item), but received {len(args)}.")
+                        target, item = args[0], args[1]
+                        if not isinstance(target, list):
+                            raise VMRuntimeError(f"line {line}: 'push' first argument must be an array, not {self._type_name(target)}.\n→ {roast()}")
+                        target.append(item)
+                        stack.append(None)
+                        frame.ip += 1
+                        continue
+
+                    # Built-in function: pop
+                    if fn_name == 'pop':
+                        if len(args) != 1:
+                            raise VMRuntimeError(f"line {line}: 'pop' expects 1 argument (array), but received {len(args)}.")
+                        target = args[0]
+                        if not isinstance(target, list):
+                            raise VMRuntimeError(f"line {line}: 'pop' argument must be an array, not {self._type_name(target)}.\n→ {roast()}")
+                        if not target:
+                            raise VMRuntimeError(f"line {line}: Cannot pop from an empty array.\n→ {roast()}")
+                        stack.append(target.pop())
+                        frame.ip += 1
+                        continue
+
                     fn_proto = None
                     for f in reversed(self.frames):
                         if fn_name in f.locals:
@@ -273,6 +314,35 @@ class VM:
                     callee_frame = CallFrame(fn_proto, locals_dict=callee_locals)
                     self.frames.append(callee_frame)
                     continue
+
+                # ── arrays / lists ──
+                elif op == OpCode.BUILD_LIST:
+                    count = arg
+                    items = [stack.pop() for _ in range(count)][::-1]
+                    stack.append(items)
+
+                elif op == OpCode.LOAD_INDEX:
+                    idx = stack.pop()
+                    target = stack.pop()
+                    if not isinstance(target, (list, str)):
+                        raise VMRuntimeError(f"line {line}: Cannot index into non-array/string type {self._type_name(target)}.\n→ {roast()}")
+                    if not isinstance(idx, int) or isinstance(idx, bool):
+                        raise VMRuntimeError(f"line {line}: Array index must be an integer, not {self._type_name(idx)}.\n→ {roast()}")
+                    if idx < 0 or idx >= len(target):
+                        raise VMRuntimeError(f"line {line}: Array index out of bounds (index {idx}, length {len(target)}).\n→ {roast()}")
+                    stack.append(target[idx])
+
+                elif op == OpCode.STORE_INDEX:
+                    val = stack.pop()
+                    idx = stack.pop()
+                    target = stack.pop()
+                    if not isinstance(target, list):
+                        raise VMRuntimeError(f"line {line}: Cannot assign index to non-array type {self._type_name(target)}.\n→ {roast()}")
+                    if not isinstance(idx, int) or isinstance(idx, bool):
+                        raise VMRuntimeError(f"line {line}: Array index must be an integer, not {self._type_name(idx)}.\n→ {roast()}")
+                    if idx < 0 or idx >= len(target):
+                        raise VMRuntimeError(f"line {line}: Array index out of bounds (index {idx}, length {len(target)}).\n→ {roast()}")
+                    target[idx] = val
 
                 elif op == OpCode.RETURN:
                     ret_val = stack.pop() if stack else None

@@ -147,13 +147,15 @@ flowchart LR
 
 #### 💡 Key VM & Compiler Mechanisms:
 1. **Bytecode OpCode Set:** Clean, modular instructions defining language operations:
-   - **Stack & Constants:** `OP_CONST`, `OP_LOAD`, `OP_STORE`, `OP_POP`
-   - **Arithmetic & Logic:** `OP_ADD`, `OP_SUB`, `OP_MUL`, `OP_DIV`, `OP_MOD`, `OP_EQ`, `OP_NEQ`, `OP_LT`, `OP_GT`, `OP_LTE`, `OP_GTE`, `OP_NEG`, `OP_POS`, `OP_NOT`
-   - **Control Flow:** `OP_JUMP`, `OP_JUMP_IF_FALSE`, `OP_HALT` (short-circuiting for `and`/`or` using conditional jumps)
-   - **I/O & Subroutines:** `OP_YAP`, `OP_HEAR`, `OP_DEF_FUNC`, `OP_CALL`, `OP_RETURN`
+   - **Stack & Constants:** `PUSH_CONST`, `LOAD_VAR`, `STORE_VAR`, `ASSIGN_VAR`, `POP`
+   - **Arithmetic & Logic:** `ADD`, `SUB`, `MUL`, `DIV`, `MOD`, `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `NEG`, `POS`, `NOT`
+   - **Control Flow:** `JUMP`, `JUMP_IF_FALSE`, `HALT` (short-circuiting for `and`/`or` using conditional jumps)
+   - **I/O & Subroutines:** `PRINT`, `HEAR`, `CALL`, `RETURN`
+   - **Arrays & Lists:** `BUILD_LIST` (construct dynamic array), `LOAD_INDEX` (`arr[i]`), `STORE_INDEX` (`arr[i] = val`)
 2. **Backpatching for Jumps:** When compiling `check` conditionals or `keep` loops, forward target jump addresses are unknown. The compiler emits dummy placeholder operands, tracks the emitted position, compiles the body, and "backpatches" the exact relative jump offset.
 3. **Loop `stop` (Break) & `skip` (Continue) Patch Stacks:** Nested loops maintain stacks of unresolved break and continue jumps. When the loop finishes, pending `stop` statements are patched to jump past the loop exit, while `skip` statements are patched to jump to the condition check (for `keep` loops) or the update expression (for classic `loop` headers).
-4. **CallFrame Subroutine Architecture:** When `OP_CALL` executes, a new `CallFrame` is pushed containing the target `CHUDFunctionProto`, its own instruction pointer (`ip`), and local argument values. `OP_RETURN` unwinds the top frame and restores caller state.
+4. **CallFrame Subroutine Architecture:** When `CALL` executes, a new `CallFrame` is pushed containing the target `CHUDFunctionProto`, its own instruction pointer (`ip`), and local argument values. `RETURN` unwinds the top frame and restores caller state.
+5. **Dynamic List & Array Primitives:** Native 0-indexed dynamic arrays with literal syntax `[...]`, multi-dimensional indexing `matrix[i][j]`, indexed mutation `arr[i] = x`, and standard built-in functions (`len()`, `push()`, `pop()`). Bound errors and type violations are trapped with line-accurate diagnostic roasts.
 
 ---
 

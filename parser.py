@@ -130,6 +130,8 @@ class Parser:
         elif tok.type == 'ID':
             if self.tokens[self.pos + 1].type == 'LPAREN':
                 return self.parse_expression()
+            if self.tokens[self.pos + 1].type == 'LBRACKET':
+                return self.parse_indexed_or_expr_statement()
             return self.parse_assign()
         else:
             raise ParseError(
@@ -137,6 +139,20 @@ class Parser:
                 f"unexpected token {tok.type} ({repr(tok.value)}) at start of statement\n"
                 f"→ {roast()}"
             )
+
+    def parse_indexed_or_expr_statement(self):
+        name_tok = self.expect('ID')
+        target = IdentifierNode(name_tok.value, line=name_tok.line)
+        while self.check('LBRACKET'):
+            b_tok = self.expect('LBRACKET')
+            idx = self.parse_expression()
+            self.expect('RBRACKET')
+            if self.check('EQ') and not (self.pos + 1 < len(self.tokens) and self.tokens[self.pos + 1].type == 'EQ'):
+                self.expect('EQ')
+                val = self.parse_expression()
+                return IndexAssignNode(target, idx, val, line=b_tok.line)
+            target = IndexAccessNode(target, idx, line=b_tok.line)
+        return target
 
 
     # ══════════════════════════════════════════
@@ -369,7 +385,7 @@ class Parser:
         return left
 
     def parse_unary(self):
-        """unary → ('-' | '+' | '!' | 'not') unary | primary
+        """unary → ('-' | '+' | '!' | 'not') unary | postfix
         Handles unary operators like -5, +x, !W, not condition.
         """
         if self.check('MINUS', 'PLUS', 'BANG', 'NOT'):
@@ -377,12 +393,38 @@ class Parser:
             operand = self.parse_unary()
             op = '!' if tok.type in ('BANG', 'NOT') else tok.value
             return UnaryOpNode(op, operand, line=tok.line)
-        return self.parse_primary()
+        return self.parse_postfix()
+
+    def parse_postfix(self):
+        """postfix → primary ( '(' args ')' | '[' expression ']' )*
+        Handles function calls and index accesses chained arbitrarily.
+        """
+        expr = self.parse_primary()
+        while True:
+            if self.check('LBRACKET'):
+                tok = self.advance()
+                idx = self.parse_expression()
+                self.expect('RBRACKET')
+                expr = IndexAccessNode(expr, idx, line=tok.line)
+            elif self.check('LPAREN') and isinstance(expr, IdentifierNode):
+                tok = self.advance()
+                arguments = []
+                if not self.check('RPAREN'):
+                    arguments.append(self.parse_expression())
+                    while self.check('COMMA'):
+                        self.advance()
+                        if self.check('RPAREN'):
+                            break
+                        arguments.append(self.parse_expression())
+                self.expect('RPAREN')
+                expr = CallNode(expr.name, arguments, line=tok.line)
+            else:
+                break
+        return expr
 
     def parse_primary(self):
-        """primary → NUMBER | FLOAT | STRING | W | L | IDENTIFIER | '(' expression ')'
-        The leaf nodes — actual values, variables, or a parenthesised sub-expression.
-        Parentheses here is what makes (2 + 3) * 4 work correctly.
+        """primary → NUMBER | FLOAT | STRING | W | L | IDENTIFIER | '[' elements? ']' | '(' expression ')' | HEAR
+        The leaf nodes — actual values, variables, array literals, or parenthesised sub-expressions.
         """
         tok = self.peek()
 
@@ -404,17 +446,20 @@ class Parser:
 
         if tok.type == 'ID':
             self.advance()
-            if self.check('LPAREN'):
-                self.advance()
-                arguments = []
-                if not self.check('RPAREN'):
-                    arguments.append(self.parse_expression())
-                    while self.check('COMMA'):
-                        self.advance()
-                        arguments.append(self.parse_expression())
-                self.expect('RPAREN')
-                return CallNode(tok.value, arguments, line=tok.line)
             return IdentifierNode(tok.value, line=tok.line)
+
+        if tok.type == 'LBRACKET':
+            self.advance()                      # consume '['
+            elements = []
+            if not self.check('RBRACKET'):
+                elements.append(self.parse_expression())
+                while self.check('COMMA'):
+                    self.advance()              # consume ','
+                    if self.check('RBRACKET'):
+                        break
+                    elements.append(self.parse_expression())
+            self.expect('RBRACKET')             # consume ']'
+            return ArrayLiteralNode(elements, line=tok.line)
 
         if tok.type == 'HEAR':
             self.advance()                      # consume 'hear'
@@ -431,7 +476,7 @@ class Parser:
 
         raise ParseError(
             f"\n[CHUD ParseError] line {tok.line} — "
-            f"expected a value (number, string, variable) but got {tok.type}\n"
+            f"expected a value (number, string, variable, array) but got {tok.type}\n"
             f"→ {roast()}"
         )
 

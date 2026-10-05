@@ -8,7 +8,8 @@ from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
     KeepNode, StopNode, SkipNode, BinOpNode, UnaryOpNode,
     NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
-    LoopNode, FunctionNode, CallNode, ReturnNode
+    LoopNode, FunctionNode, CallNode, ReturnNode,
+    ArrayLiteralNode, IndexAccessNode, IndexAssignNode
 )
 
 
@@ -184,6 +185,37 @@ def ast_to_d3(node):
             "name": label,
             "type": "Hear",
             "line": node.line
+        }
+
+    if isinstance(node, ArrayLiteralNode):
+        return {
+            "name": f"array [{len(node.elements)} items]",
+            "type": "ArrayLiteral",
+            "line": node.line,
+            "children": [ast_to_d3(elem) for elem in node.elements]
+        }
+
+    if isinstance(node, IndexAccessNode):
+        return {
+            "name": "index_access",
+            "type": "IndexAccess",
+            "line": node.line,
+            "children": [
+                ast_to_d3(node.target),
+                {"name": "index", "type": "Label", "children": [ast_to_d3(node.index)]}
+            ]
+        }
+
+    if isinstance(node, IndexAssignNode):
+        return {
+            "name": "index_assign",
+            "type": "IndexAssign",
+            "line": node.line,
+            "children": [
+                ast_to_d3(node.target),
+                {"name": "index", "type": "Label", "children": [ast_to_d3(node.index)]},
+                {"name": "value", "type": "Label", "children": [ast_to_d3(node.value)]}
+            ]
         }
 
     return {"name": str(node), "type": "Unknown"}

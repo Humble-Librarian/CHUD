@@ -53,6 +53,11 @@ class OpCode:
     CALL         = 'CALL'         # arg = (function_name, arg_count)
     RETURN       = 'RETURN'       # pop return value, exit function chunk
 
+    # ── Arrays / Lists ──
+    BUILD_LIST   = 'BUILD_LIST'   # arg = count; pop count items, push list
+    LOAD_INDEX   = 'LOAD_INDEX'   # pop index, pop target -> push target[index]
+    STORE_INDEX  = 'STORE_INDEX'  # pop value, pop index, pop target -> target[index] = value
+
     # ── Program structure ──
     HALT         = 'HALT'         # stop execution
 

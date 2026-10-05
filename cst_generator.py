@@ -46,6 +46,7 @@ RULE_MAPPING = {
     'parse_statement': 'statement',
     'parse_let': 'let_stmt',
     'parse_assign': 'assign_stmt',
+    'parse_indexed_or_expr_statement': 'indexed_assign_stmt',
     'parse_yap': 'yap_stmt',
     'parse_check': 'check_stmt',
     'parse_keep': 'keep_stmt',
@@ -60,6 +61,7 @@ RULE_MAPPING = {
     'parse_term': 'term',
     'parse_factor': 'factor',
     'parse_unary': 'unary',
+    'parse_postfix': 'postfix',
     'parse_primary': 'primary',
 }
 
