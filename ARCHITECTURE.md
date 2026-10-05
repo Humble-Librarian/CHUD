@@ -45,10 +45,10 @@ flowchart LR
     Raw["Raw CHUD Code<br>let score = 42"] --> Lexer{"Lexer Loop<br>Maximal Munch"}
     
     Lexer -->|Whitespace / Comments| Skip["⏭️ Ignore & Advance"]
-    Lexer -->|Keywords: check, let, make| KW["🏷️ Keyword Token"]
+    Lexer -->|Keywords: check, let, make, and, or, not| KW["🏷️ Keyword Token"]
     Lexer -->|Numbers / Floats: 42, 3.14| Num["🔢 Number / Float Token"]
     Lexer -->|Strings: text| Str["📝 String Token"]
-    Lexer -->|Operators: ==, <=, +| Op["⚡ Operator Token"]
+    Lexer -->|Operators: ==, <=, +, %, !| Op["⚡ Operator Token"]
     Lexer -->|Identifiers: score| Id["👤 Identifier Token"]
     
     KW --> Stream["Ordered Token Stream + EOF"]
@@ -61,10 +61,11 @@ flowchart LR
 #### 💡 How It Works
 1. **Maximal Munch Principle:** The lexer matches the longest possible valid token at any cursor position. For instance:
    - `==` is captured as `EQEQ`, never as two separate `=` (`EQ`) tokens.
+   - `!=` is captured as `NEQ`, before `!` (`BANG`).
    - `<=` and `>=` take precedence over `<` and `>`.
    - `3.14` is matched as `FLOAT`, rather than `NUMBER` + `.` + `NUMBER`.
-2. **Priority-Ordered Token Patterns:** Regex patterns are evaluated in strict precedence (`FLOAT` $\rightarrow$ `NUMBER` $\rightarrow$ `STRING` $\rightarrow$ `EQEQ` $\rightarrow$ `NEQ` $\rightarrow$ `LE` $\rightarrow$ `GE` $\rightarrow$ `EQ` $\rightarrow$ Single Character Operators $\rightarrow$ `IDENTIFIER`).
-3. **Keyword Discrimination:** Any word matching the identifier pattern is checked against the internal `KEYWORDS` dictionary (`check`, `otherwise`, `keep`, `loop`, `let`, `make`, `return`, `yap`, `hear`, `stop`, `W`, `L`). If found, it receives a dedicated keyword token type; otherwise, it remains an `IDENTIFIER`.
+2. **Priority-Ordered Token Patterns:** Regex patterns are evaluated in strict precedence (`FLOAT` $\rightarrow$ `NUMBER` $\rightarrow$ `STRING` $\rightarrow$ `EQEQ` $\rightarrow$ `NEQ` $\rightarrow$ `BANG` $\rightarrow$ `LE` $\rightarrow$ `GE` $\rightarrow$ `EQ` $\rightarrow$ Single Character Operators $\rightarrow$ `PERCENT` $\rightarrow$ `IDENTIFIER`).
+3. **Keyword Discrimination:** Any word matching the identifier pattern is checked against the internal `KEYWORDS` dictionary (`check`, `otherwise`, `keep`, `loop`, `let`, `make`, `return`, `yap`, `hear`, `stop`, `W`, `L`, `and`, `or`, `not`). If found, it receives a dedicated keyword token type; otherwise, it remains an `IDENTIFIER`.
 4. **Line-Numbered Error Diagnostics:** Every token retains its 1-indexed source line. If an unknown character is encountered, a descriptive `LexError` is raised with the line number and diagnostic feedback.
 
 ---
@@ -79,7 +80,7 @@ Validate the token stream against the formal CHUD grammar using **Recursive Desc
 flowchart TD
     Tokens["Token Stream from Lexer"] --> Parser["Recursive-Descent Parser (LL1)"]
     
-    Parser --> GrammarRules["Grammar Rule Handlers:<br>• parse_program()<br>• parse_statement()<br>• parse_expression()<br>• parse_comparison()<br>• parse_term()<br>• parse_factor()<br>• parse_unary()<br>• parse_primary()"]
+    Parser --> GrammarRules["Grammar Rule Handlers:<br>• parse_program()<br>• parse_statement()<br>• parse_expression()<br>• parse_logic_or()<br>• parse_logic_and()<br>• parse_comparison()<br>• parse_term()<br>• parse_factor()<br>• parse_unary()<br>• parse_primary()"]
     
     GrammarRules --> CST["🌳 CST Generator<br>Full Derivation Tree<br>(Retains all punctuation & grammar steps)"]
     GrammarRules --> AST["🌿 AST Node Builder<br>Semantic Tree<br>(Clean nodes: Let, BinOp, Function, Check)"]
@@ -90,7 +91,7 @@ flowchart TD
 #### 💡 How It Works
 1. **Recursive Descent Architecture:** Each non-terminal grammar rule is mapped to a dedicated parsing method. The parser uses `peek()`, `advance()`, and `expect(token_type)` to consume tokens without backtracking.
 2. **Operator Precedence Cascade:** Mathematical and logical operators are structured hierarchically to enforce standard PEMDAS and relational ordering:
-   $$\text{Comparison } (==, !=, <, >, <=, >=) \longrightarrow \text{Term } (+, -) \longrightarrow \text{Factor } (*, /) \longrightarrow \text{Unary } (+, -) \longrightarrow \text{Primary}$$
+   $$\text{Logic Or } (\text{or}) \longrightarrow \text{Logic And } (\text{and}) \longrightarrow \text{Comparison } (==, !=, <, >, <=, >=) \longrightarrow \text{Term } (+, -) \longrightarrow \text{Factor } (*, /, \%) \longrightarrow \text{Unary } (+, -, !, \text{not}) \longrightarrow \text{Primary}$$
 3. **CST vs. AST Distinction:**
    - **CST (Concrete Syntax Tree):** Captures every lexical artifact (braces, parentheses, semicolons, grammar non-terminals) for complete compiler-theoretical derivation.
    - **AST (Abstract Syntax Tree):** Distills the syntax down to pure semantic nodes ([`ProgramNode`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py), [`AssignNode`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py), [`BinOpNode`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py), [`CheckNode`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py), [`FunctionNode`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py)), stripping away syntactic fluff.
@@ -147,8 +148,8 @@ flowchart LR
 #### 💡 Key VM & Compiler Mechanisms:
 1. **Bytecode OpCode Set:** Clean, modular instructions defining language operations:
    - **Stack & Constants:** `OP_CONST`, `OP_LOAD`, `OP_STORE`, `OP_POP`
-   - **Arithmetic & Logic:** `OP_ADD`, `OP_SUB`, `OP_MUL`, `OP_DIV`, `OP_EQ`, `OP_NEQ`, `OP_LT`, `OP_GT`, `OP_LTE`, `OP_GTE`, `OP_NEG`, `OP_POS`
-   - **Control Flow:** `OP_JUMP`, `OP_JUMP_IF_FALSE`, `OP_HALT`
+   - **Arithmetic & Logic:** `OP_ADD`, `OP_SUB`, `OP_MUL`, `OP_DIV`, `OP_MOD`, `OP_EQ`, `OP_NEQ`, `OP_LT`, `OP_GT`, `OP_LTE`, `OP_GTE`, `OP_NEG`, `OP_POS`, `OP_NOT`
+   - **Control Flow:** `OP_JUMP`, `OP_JUMP_IF_FALSE`, `OP_HALT` (short-circuiting for `and`/`or` using conditional jumps)
    - **I/O & Subroutines:** `OP_YAP`, `OP_HEAR`, `OP_DEF_FUNC`, `OP_CALL`, `OP_RETURN`
 2. **Backpatching for Jumps:** When compiling `check` conditionals or `keep` loops, forward target jump addresses are unknown. The compiler emits dummy placeholder operands, tracks the emitted position, compiles the body, and "backpatches" the exact relative jump offset.
 3. **Loop `stop` (Break) Patch Stacks:** Nested loops maintain a stack of unresolved break jumps. When the loop body finishes, all pending `stop` statements are patched to jump directly past the loop exit.

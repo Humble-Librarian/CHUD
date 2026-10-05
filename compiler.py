@@ -34,6 +34,7 @@ BINOP_TO_OPCODE = {
     '-':  OpCode.SUB,
     '*':  OpCode.MUL,
     '/':  OpCode.DIV,
+    '%':  OpCode.MOD,
     '==': OpCode.EQ,
     '!=': OpCode.NEQ,
     '<':  OpCode.LT,
@@ -292,11 +293,47 @@ class Compiler:
             <compile right>   — pushes 1 value
             OP_INSTRUCTION    — pops 2, pushes 1 (the result)
 
-        This is identical in spirit to interpreter.py's
-        eval_expr(BinOpNode): evaluate left, evaluate right,
-        THEN combine. Here 'evaluate' means 'emit code that
-        will compute it at runtime', not compute it now.
+        Short-circuit operators ('and', 'or') emit conditional jumps
+        so the right operand is only evaluated when necessary.
         """
+        if node.op == 'and':
+            # left and right:
+            # compile left
+            # if left is falsy -> jump to push False
+            # if left is truthy -> compile right
+            self.compile_node(node.left)
+            jump_false = self.chunk.emit(OpCode.JUMP_IF_FALSE, None, line=node.line)
+            self.compile_node(node.right)
+            jump_end = self.chunk.emit(OpCode.JUMP, None, line=node.line)
+
+            false_target = self.chunk.current_offset()
+            self.chunk.patch_jump(jump_false, false_target)
+            idx = self.chunk.add_constant(False)
+            self.chunk.emit(OpCode.PUSH_CONST, idx, line=node.line)
+
+            end_target = self.chunk.current_offset()
+            self.chunk.patch_jump(jump_end, end_target)
+            return
+
+        if node.op == 'or':
+            # left or right:
+            # compile left
+            # if left is falsy -> jump to evaluate right
+            # if left is truthy -> push True, jump to end
+            self.compile_node(node.left)
+            jump_false = self.chunk.emit(OpCode.JUMP_IF_FALSE, None, line=node.line)
+            idx = self.chunk.add_constant(True)
+            self.chunk.emit(OpCode.PUSH_CONST, idx, line=node.line)
+            jump_end = self.chunk.emit(OpCode.JUMP, None, line=node.line)
+
+            false_target = self.chunk.current_offset()
+            self.chunk.patch_jump(jump_false, false_target)
+            self.compile_node(node.right)
+
+            end_target = self.chunk.current_offset()
+            self.chunk.patch_jump(jump_end, end_target)
+            return
+
         self.compile_node(node.left)
         self.compile_node(node.right)
 
@@ -306,14 +343,16 @@ class Compiler:
         self.chunk.emit(opcode, line=node.line)
 
     def compile_unaryop(self, node):
-        """-x  or  +x
-        Compile the operand, then negate/pos it.
+        """-x  or  +x  or  !x
+        Compile the operand, then apply unary op.
         """
         self.compile_node(node.operand)
         if node.op == '-':
             self.chunk.emit(OpCode.NEG, line=node.line)
         elif node.op == '+':
             self.chunk.emit(OpCode.POS, line=node.line)
+        elif node.op in ('!', 'not'):
+            self.chunk.emit(OpCode.NOT, line=node.line)
         else:
             raise CompileError(f"Unknown unary operator '{node.op}' at line {node.line}")
 

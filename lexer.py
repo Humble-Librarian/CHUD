@@ -39,6 +39,9 @@ KEYWORDS = {
     'loop'     : 'LOOP',        # classic for loop
     'make'     : 'MAKE',        # function declaration
     'return'   : 'RETURN',      # function return
+    'and'      : 'AND',         # logical and
+    'or'       : 'OR',          # logical or
+    'not'      : 'NOT',         # logical not
 }
 
 
@@ -54,7 +57,8 @@ TOKEN_PATTERNS = [
     ('NUMBER',  re.compile(r'\d+')),              # 42
     ('STRING',  re.compile(r'"[^"]*"')),          # "hello bro"
     ('EQEQ',    re.compile(r'==')),               # ==   before EQ so == isn't = then =
-    ('NEQ',     re.compile(r'!=')),               # !=
+    ('NEQ',     re.compile(r'!=')),               # !=   before BANG
+    ('BANG',    re.compile(r'!')),                # !    logical not
     ('LE',      re.compile(r'<=')),               # <=   before LT
     ('GE',      re.compile(r'>=')),               # >=   before GT
     ('EQ',      re.compile(r'=')),                # =
@@ -64,6 +68,7 @@ TOKEN_PATTERNS = [
     ('MINUS',   re.compile(r'-')),                # -
     ('STAR',    re.compile(r'\*')),               # *
     ('SLASH',   re.compile(r'/')),                # /
+    ('PERCENT', re.compile(r'%')),                # %    modulo
     ('LPAREN',  re.compile(r'\(')),               # (
     ('RPAREN',  re.compile(r'\)')),               # )
     ('LBRACE',  re.compile(r'\{')),               # {

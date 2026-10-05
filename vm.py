@@ -36,6 +36,9 @@ class VM:
             return str(int(val))
         return str(val)
 
+    def is_truthy(self, val):
+        return bool(val)
+
     def _type_name(self, value):
         if isinstance(value, bool):
             return "boolean"
@@ -134,6 +137,15 @@ class VM:
                     res = a / b
                     stack.append(int(res) if isinstance(res, float) and res.is_integer() else res)
 
+                elif op == OpCode.MOD:
+                    b, a = stack.pop(), stack.pop()
+                    self._require_number(a, line, '%')
+                    self._require_number(b, line, '%')
+                    if b == 0:
+                        raise VMRuntimeError(f"line {line}: Modulo by zero is forbidden.\n→ {roast()}")
+                    res = a % b
+                    stack.append(int(res) if isinstance(res, float) and res.is_integer() else res)
+
                 # ── unary ──
                 elif op == OpCode.NEG:
                     a = stack.pop()
@@ -144,6 +156,10 @@ class VM:
                     a = stack.pop()
                     self._require_number(a, line, '+')
                     stack.append(+a)
+
+                elif op == OpCode.NOT:
+                    a = stack.pop()
+                    stack.append(not self.is_truthy(a))
 
                 # ── comparisons ──
                 elif op == OpCode.EQ:

@@ -26,10 +26,12 @@ class OpCode:
     SUB          = 'SUB'
     MUL          = 'MUL'
     DIV          = 'DIV'
+    MOD          = 'MOD'
 
     # ── Unary (pop 1, push 1) ──
     NEG          = 'NEG'          # unary minus
     POS          = 'POS'          # unary plus (no-op numerically, but type-checks)
+    NOT          = 'NOT'          # unary logical not
 
     # ── Comparison (pop 2, push 1 bool) ──
     EQ           = 'EQ'

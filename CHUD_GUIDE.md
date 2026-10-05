@@ -54,15 +54,36 @@ yap apples + friends
 yap apples - friends
 yap apples * friends
 yap apples / friends
+yap apples % friends // modulo (remainder: 2)
 yap apples >= friends
 ```
 
-`*` and `/` run before `+` and `-`. Use parentheses when you want a different order.
+`*`, `/`, and `%` run before `+` and `-`. Use parentheses when you want a different order.
 
 ```chud
 yap 2 + 3 * 4
 yap (2 + 3) * 4
+yap 17 % 5
 ```
+
+## Boolean Logic (`and`, `or`, `!`)
+
+Combine conditions using `and`, `or`, and negate values with `!` or `not`.
+
+```chud
+let age = 20
+let has_id = W
+
+check age >= 18 and has_id {
+    yap "Welcome inside"
+}
+
+check !has_id or age < 18 {
+    yap "Entry restricted"
+}
+```
+
+`and` and `or` use short-circuit evaluation—evaluating the right side only when necessary.
 
 `+` also joins text with another value, which makes simple messages easy:
 

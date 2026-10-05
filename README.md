@@ -21,7 +21,7 @@
 | Feature | Syntax & Details |
 |---|---|
 | **Variables & Types** | `let name = "Alice"` (declaration), `name = "Bob"` (reassignment), Numbers (`42`, `3.14`), Strings (`"hello"`), Booleans (`W` = true, `L` = false) |
-| **Arithmetic & Logic** | `+`, `-`, `*`, `/`, unary `+` / `-`, string concatenation, comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`) with standard operator precedence |
+| **Arithmetic & Logic** | `+`, `-`, `*`, `/`, `%` (modulo), unary `+` / `-`, `!` / `not` (negation), boolean logic (`and`, `or` with short-circuiting), string concatenation, comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`) |
 | **Conditionals** | `check condition { ... } otherwise { ... }` with truthiness semantics |
 | **Loops & Flow** | `keep condition { ... }` (while-loop), `loop let i = 0; i < 5; i = i + 1 { ... }` (for-loop), and `stop` (break) |
 | **Functions** | `make func(a, b) { return a + b }` with parameter passing, lexical scoping, recursion, and return values |
@@ -63,7 +63,7 @@ python chud.py
 # Full test suite (Compiler, CST, AST, Interpreter, Server, Frontend)
 python test_all.py
 
-# Bytecode VM <-> Interpreter parity test suite (19 tests)
+# Bytecode VM <-> Interpreter parity test suite (24 tests)
 python test_vm_parity.py
 ```
 

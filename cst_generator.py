@@ -54,6 +54,8 @@ RULE_MAPPING = {
     'parse_return': 'return_stmt',
     'parse_block': 'block',
     'parse_expression': 'expression',
+    'parse_logic_or': 'logic_or',
+    'parse_logic_and': 'logic_and',
     'parse_comparison': 'comparison',
     'parse_term': 'term',
     'parse_factor': 'factor',

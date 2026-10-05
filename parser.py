@@ -15,11 +15,13 @@
 #  return_stmt → RETURN expression
 #  yap_stmt    → YAP expression
 #  stop_stmt   → STOP
-#  expression  → comparison
+#  expression  → logic_or
+#  logic_or    → logic_and ( 'or' logic_and )*
+#  logic_and   → comparison ( 'and' comparison )*
 #  comparison  → term (('==' | '!=' | '<' | '>' | '<=' | '>=') term)*
 #  term        → factor (('+' | '-') factor)*
-#  factor      → unary (('*' | '/') unary)*
-#  unary       → ('-' | '+') unary | primary
+#  factor      → unary (('*' | '/' | '%') unary)*
+#  unary       → ('-' | '+' | '!' | 'not') unary | primary
 #  primary     → NUMBER | FLOAT | STRING | W | L | IDENTIFIER | '(' expression ')'
 # ─────────────────────────────────────────────
 
@@ -293,12 +295,35 @@ class Parser:
     #  next deeper level.
     #
     #  Order (lowest → highest precedence):
-    #  expression → comparison → term → factor → unary → primary
+    #  expression → logic_or → logic_and → comparison → term → factor → unary → primary
     # ══════════════════════════════════════════
 
     def parse_expression(self):
-        # expression is just an alias for comparison (lowest precedence)
-        return self.parse_comparison()
+        return self.parse_logic_or()
+
+    def parse_logic_or(self):
+        """logic_or → logic_and ('or' logic_and)*
+        Handles: a or b, x > 5 or y < 2
+        Lower precedence than 'and'
+        """
+        left = self.parse_logic_and()
+        while self.check('OR'):
+            tok   = self.advance()
+            right = self.parse_logic_and()
+            left  = BinOpNode(left, 'or', right, line=tok.line)
+        return left
+
+    def parse_logic_and(self):
+        """logic_and → comparison ('and' comparison)*
+        Handles: a and b, age >= 18 and has_license == W
+        Lower precedence than comparison
+        """
+        left = self.parse_comparison()
+        while self.check('AND'):
+            tok   = self.advance()
+            right = self.parse_comparison()
+            left  = BinOpNode(left, 'and', right, line=tok.line)
+        return left
 
     def parse_comparison(self):
         """comparison → term (('==' | '!=' | '<' | '>' | '<=' | '>=') term)*
@@ -327,12 +352,12 @@ class Parser:
         return left
 
     def parse_factor(self):
-        """factor → unary (('*' | '/') unary)*
-        Handles: a * b, x / 2
+        """factor → unary (('*' | '/' | '%') unary)*
+        Handles: a * b, x / 2, n % 2
         Tightest binding among binary ops.
         """
         left = self.parse_unary()
-        while self.check('STAR', 'SLASH'):
+        while self.check('STAR', 'SLASH', 'PERCENT'):
             tok   = self.advance()
             op    = tok.value
             right = self.parse_unary()
@@ -340,13 +365,14 @@ class Parser:
         return left
 
     def parse_unary(self):
-        """unary → ('-' | '+') unary | primary
-        Handles unary operators like -5 or -x.
+        """unary → ('-' | '+' | '!' | 'not') unary | primary
+        Handles unary operators like -5, +x, !W, not condition.
         """
-        if self.check('MINUS', 'PLUS'):
+        if self.check('MINUS', 'PLUS', 'BANG', 'NOT'):
             tok = self.advance()
             operand = self.parse_unary()
-            return UnaryOpNode(tok.value, operand, line=tok.line)
+            op = '!' if tok.type in ('BANG', 'NOT') else tok.value
+            return UnaryOpNode(op, operand, line=tok.line)
         return self.parse_primary()
 
     def parse_primary(self):

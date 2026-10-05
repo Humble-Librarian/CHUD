@@ -202,6 +202,54 @@ def test_reassignment_vs_declaration():
     )
 
 
+def test_modulo_operator():
+    assert_parity(
+        'let a = 17 % 5\nlet b = 10 % 2\nlet c = 25 % 7\nyap a\nyap b\nyap c',
+        "modulo operator (%) calculation"
+    )
+
+
+def test_modulo_by_zero_parity():
+    assert_parity(
+        'yap 10 % 0',
+        "runtime error: modulo by zero"
+    )
+
+
+def test_logical_not_operator():
+    assert_parity(
+        'yap !W\nyap !L\nyap not (5 > 10)\nyap !!W\nyap not L',
+        "logical not (! / not) operator"
+    )
+
+
+def test_logical_and_or_operators():
+    assert_parity(
+        'yap W and W\nyap W and L\nyap L and W\nyap L and L\nyap W or L\nyap L or W\nyap L or L\nyap 10 > 5 and 3 < 4\nyap 10 < 5 or 2 == 2',
+        "logical and / or expressions"
+    )
+
+
+def test_short_circuit_behavior():
+    src = '''
+let side_effect = 0
+make trigger() {
+    side_effect = side_effect + 1
+    return W
+}
+check L and trigger() {
+    yap "should not run"
+}
+yap side_effect
+
+check W or trigger() {
+    yap "short circuit or"
+}
+yap side_effect
+'''
+    assert_parity(src, "short-circuiting of and / or operators")
+
+
 if __name__ == '__main__':
     test_straight_line_arithmetic()
     test_string_concat_and_stringify()
@@ -222,5 +270,10 @@ if __name__ == '__main__':
     test_division_by_zero_parity()
     test_comparison_operators_parity()
     test_reassignment_vs_declaration()
+    test_modulo_operator()
+    test_modulo_by_zero_parity()
+    test_logical_not_operator()
+    test_logical_and_or_operators()
+    test_short_circuit_behavior()
 
     print("\n[CHUD] VM <-> INTERPRETER PARITY FULLY VERIFIED -- bytecode backend is a drop-in match.")

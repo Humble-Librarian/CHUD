@@ -158,6 +158,8 @@ class Interpreter:
 
         if isinstance(node, UnaryOpNode):
             val = self.eval_expr(node.operand, env)
+            if node.op in ('!', 'not'):
+                return not self.is_truthy(val)
             self._require_number(val, node, node.op)
             if node.op == '-':
                 return -val
@@ -166,6 +168,20 @@ class Interpreter:
             raise CHUDRuntimeError(f"Unknown unary operator '{node.op}'\n→ {roast()}")
 
         if isinstance(node, BinOpNode):
+            if node.op == 'and':
+                left = self.eval_expr(node.left, env)
+                if not self.is_truthy(left):
+                    return False
+                right = self.eval_expr(node.right, env)
+                return bool(self.is_truthy(right))
+
+            if node.op == 'or':
+                left = self.eval_expr(node.left, env)
+                if self.is_truthy(left):
+                    return True
+                right = self.eval_expr(node.right, env)
+                return bool(self.is_truthy(right))
+
             left = self.eval_expr(node.left, env)
             right = self.eval_expr(node.right, env)
 
@@ -189,6 +205,13 @@ class Interpreter:
                 if right == 0:
                     raise self._runtime_error(node, "Division by zero is forbidden.")
                 res = left / right
+                return int(res) if isinstance(res, float) and res.is_integer() else res
+            if node.op == '%':
+                self._require_number(left, node, node.op)
+                self._require_number(right, node, node.op)
+                if right == 0:
+                    raise self._runtime_error(node, "Modulo by zero is forbidden.")
+                res = left % right
                 return int(res) if isinstance(res, float) and res.is_integer() else res
 
             if node.op == '==':
