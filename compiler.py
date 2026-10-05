@@ -424,15 +424,30 @@ class Compiler:
         self.chunk.emit(OpCode.STORE_INDEX, line=node.line)
 
 
-def compile_source(source_code):
+def compile_source(source_code, opt_level=0):
     """Convenience: CHUD source string -> Chunk.
-    Mirrors interpreter.py's interpret() convenience function.
+    Supports optimization levels:
+      opt_level=0: No optimizations (raw emission)
+      opt_level=1: AST constant folding & dead branch pruning
+      opt_level=2: AST folding + Bytecode sliding-window peephole optimizer
     """
     from lexer import Lexer
     from parser import Parser
+    from ast_optimizer import ASTOptimizer
+    from bytecode_optimizer import BytecodeOptimizer
+
     tokens = Lexer(source_code).tokenize()
     ast = Parser(tokens).parse()
-    return Compiler().compile(ast)
+
+    if opt_level >= 1:
+        ast = ASTOptimizer().optimize(ast)
+
+    chunk = Compiler().compile(ast)
+
+    if opt_level >= 2:
+        BytecodeOptimizer().optimize_chunk(chunk)
+
+    return chunk
 
 
 # ── Quick test ────────────────────────────────

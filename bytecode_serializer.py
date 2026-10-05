@@ -241,9 +241,9 @@ def deserialize_chunk(binary_data: bytes) -> Chunk:
     return BytecodeDeserializer().deserialize_file(binary_data)
 
 
-def compile_source_to_chudc(source_code: str, output_path: str):
-    """Compiles CHUD source string directly to a .chudc binary file."""
-    chunk = compile_source(source_code)
+def compile_source_to_chudc(source_code: str, output_path: str, opt_level: int = 2):
+    """Compiles CHUD source string directly to a .chudc binary file with optimization."""
+    chunk = compile_source(source_code, opt_level=opt_level)
     bin_data = serialize_chunk(chunk)
     with open(output_path, "wb") as f:
         f.write(bin_data)

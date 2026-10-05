@@ -237,6 +237,54 @@ flowchart LR
 
 ---
 
+### 🚀 Stage 7: Multi-Tier Compiler Optimization Engine (`ast_optimizer.py` + `bytecode_optimizer.py`)
+**Files involved:** [`ast_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_optimizer.py), [`bytecode_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode_optimizer.py), [`chud.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/chud.py), [`test_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_optimizer.py)
+
+#### 🎯 Goal
+Accelerate execution and reduce bytecode size through a composable, multi-tier optimization pipeline supporting standard compiler levels (`-O0`, `-O1`, `-O2`) with real-time telemetry metrics.
+
+```mermaid
+flowchart TD
+    RawAST["🌿 Parsed AST"] --> OptLevel{"Optimization Level"}
+    
+    OptLevel -->|-O0| DirectComp["Direct Bytecode Compiler"]
+    
+    OptLevel -->|-O1 or -O2| ASTOpt["⚡ AST Optimizer (ast_optimizer.py)<br>• Constant Folding (2 + 3 * 4 => 14)<br>• String Concatenation Pre-computation<br>• Boolean & Unary Simplification (not W => L)<br>• Dead Branch Pruning (check W / check L)<br>• Post-Return/Stop Dead Code Stripping"]
+    
+    ASTOpt --> OptAST["🌿 Optimized AST (-20% to -50% nodes)"]
+    OptAST --> Compiler["⚡ Bytecode Compiler (compiler.py)"]
+    DirectComp --> Compiler
+    
+    Compiler --> RawChunk["📦 Unoptimized Bytecode Chunk"]
+    
+    RawChunk --> OptLevel2{"-O2 Enabled?"}
+    OptLevel2 -->|No| FinalChunk["Final Bytecode Chunk"]
+    OptLevel2 -->|Yes| BCOpt["🔍 Peephole Optimizer (bytecode_optimizer.py)<br>• Push/Pop Redundancy Elimination<br>• Jump-to-Next Instruction Cancellation<br>• Jump Threading (Chain Shortening)<br>• Dead Instruction Stripping post-Halt/Return<br>• Constant Pool Compaction & Deduplication"]
+    
+    BCOpt --> FinalChunk
+    FinalChunk --> Exec["🖥️ VM / Serializer / C Codegen"]
+```
+
+#### 💡 Optimization Passes & Capabilities:
+1. **Tier 1 — AST Constant Folding & Algebraic Identities:**
+   - Evaluates static numeric, boolean, and string binary expressions at compile time.
+   - Simplifies identity operations (`x + 0` $\rightarrow$ `x`, `1 * x` $\rightarrow$ `x`, `x - 0` $\rightarrow$ `x`).
+   - Folds double negations (`!(!x)` $\rightarrow$ `x`).
+2. **Tier 1 — Dead Branch & Statement Elimination:**
+   - Evaluates `check W` $\rightarrow$ inlines then-branch and drops otherwise-branch.
+   - Evaluates `check L` $\rightarrow$ drops then-branch and inlines otherwise-branch.
+   - Drops `keep L` loops entirely.
+   - Strips unreachable statements appearing after an unconditional `return`, `stop`, or `skip`.
+3. **Tier 2 — Bytecode Peephole Sliding Window:**
+   - **Push/Pop Elimination:** Detects and removes redundant `[PUSH_CONST, POP]` sequences when untargeted by jumps.
+   - **Jump-to-Next Elimination:** Strips `JUMP` instructions targeting the immediately following instruction.
+   - **Jump Threading:** Short-circuits unconditional jump chains directly to the ultimate target address.
+   - **Dead Bytecode Stripping:** Removes untargeted instructions following `HALT`, `RETURN`, or unconditional `JUMP`.
+4. **Telemetry & Benchmark Reporting (`--opt-stats`):**
+   - Displays real-time AST node reduction %, constant folding counts, dead branch counts, instruction delta %, and peephole passes run.
+
+---
+
 ## 📁 Complete File Directory Reference
 
 | File Path | Primary Function |
@@ -244,6 +292,8 @@ flowchart LR
 | [`lexer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/lexer.py) | Maximal-munch lexical analyzer converting raw CHUD source into typed, line-numbered `Token` streams. |
 | [`parser.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/parser.py) | LL(1)-style recursive-descent parser constructing hierarchical AST nodes and validating syntax rules. |
 | [`ast_nodes.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py) | Object-oriented AST node schema definitions for statements, expressions, control blocks, and functions. |
+| [`ast_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_optimizer.py) | AST-level constant folding, dead branch pruning, algebraic simplifications, and dead code elimination. |
+| [`bytecode_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode_optimizer.py) | Bytecode sliding-window peephole optimizer, jump threading, dead instruction stripping, and constant pool compaction. |
 | [`cst_generator.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/cst_generator.py) | Full Concrete Syntax Tree generator capturing all grammar non-terminals, tokens, and punctuation. |
 | [`ast_serializer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_serializer.py) | D3-compliant tree serializer with node hierarchy formatting, tree depth calculation, and compactness metrics. |
 | [`interpreter.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/interpreter.py) | Scoped Tree-Walk Interpreter with lexical `Environment` chaining, runtime type-checking, and loop safety limits. |
@@ -253,11 +303,12 @@ flowchart LR
 | [`bytecode_serializer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode_serializer.py) | Cross-platform binary serializer and fast deserializer for `.chudc` files with CRC32 integrity checks. |
 | [`c_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/c_codegen.py) | Standalone C99 code generator and AOT compiler producing native bare-metal executables via GCC. |
 | [`server.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/server.py) | Zero-dependency HTTP server (`http.server`) hosting the studio web client and REST JSON API endpoints. |
-| [`chud.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/chud.py) | Standalone CLI entrypoint supporting `.chud` scripts, `.chudc` binaries, `--compile-c`, and interactive REPL. |
+| [`chud.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/chud.py) | Standalone CLI entrypoint supporting `.chud` scripts, `.chudc` binaries, `-O` optimization flags, `--opt-stats`, and REPL. |
 | [`index.html`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/index.html) | Split-pane Studio Web IDE user interface with D3 canvas, token data table, and JSON inspector. |
 | [`style.css`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/style.css) | Custom styling, CSS variable design systems, responsive split panes, and multi-theme definitions. |
 | [`app.js`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/app.js) | Frontend controller managing D3 graph rendering, zoom/pan controls, token filtering, and API communication. |
 | [`test_all.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_all.py) | End-to-end integration test suite verifying Lexer, Parser, CST, AST, Interpreter, and Server components. |
+| [`test_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_optimizer.py) | Unit & parity test suite for Phase 4 AST constant folding, dead branch pruning, and bytecode peephole optimizations. |
 | [`test_vm_parity.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_vm_parity.py) | Automated parity test suite verifying identical execution between the Tree-Walk Interpreter and Bytecode VM. |
 | [`test_native_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_native_codegen.py) | Comprehensive test suite for Native C99 transpilation, runtime arena memory, and GCC compilation. |
 | [`test_bytecode_serialization.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_bytecode_serialization.py) | Binary `.chudc` test suite verifying serialization, deserialization, CRC32 integrity, and VM execution parity. |
@@ -275,23 +326,23 @@ flowchart LR
 python server.py
 # -> Open http://localhost:8000 in your browser (or python server.py 8080 for custom port)
 
-# 2. Run CHUD Script Files (Interpreter or Bytecode VM Auto-detected)
-python chud.py game.chud
-python chud.py rizz_calculator.chud
+# 2. Run CHUD Script with Full Optimization & Telemetry (-O2 --opt-stats)
+python chud.py rizz_calculator.chud --vm -O2 --opt-stats
 
-# 3. Compile to Binary Bytecode (.chudc) and Execute Instantly
-python chud.py --emit-bc rizz_calculator.chud -o rizz_calculator.chudc
+# 3. Compile to Optimized Binary Bytecode (.chudc) and Execute Instantly
+python chud.py --emit-bc rizz_calculator.chud -O2 -o rizz_calculator.chudc
 python chud.py rizz_calculator.chudc
 
-# 4. Compile to Native Bare-Metal Executable (.exe) via C Generator & GCC
-python chud.py --compile-c rizz_calculator.chud -o rizz_calc.exe
+# 4. Compile to Native Standalone Executable (.exe) via C Generator & GCC
+python chud.py -c rizz_calculator.chud -o rizz_calc.exe
 ./rizz_calc.exe
 
 # 5. Launch the Interactive CHUD REPL
 python chud.py
 
-# 6. Run Complete Test Suites
+# 6. Run Complete Test Matrix
 python test_all.py
+python test_optimizer.py
 python test_vm_parity.py
 python test_native_codegen.py
 python test_bytecode_serialization.py
