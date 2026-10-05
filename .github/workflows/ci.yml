@@ -10,6 +10,8 @@ jobs:
   test-cross-platform:
     name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +29,7 @@ jobs:
 
       - name: Add MinGW to PATH (Windows)
         if: runner.os == 'Windows'
-        run: echo "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        run: echo "C:\msys64\mingw64\bin" >> $env:GITHUB_PATH
 
       - name: Verify Zero Pip Dependencies
         run: |

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────
-#  CHUD — test_vm_parity.py
+#  CHUD -- test_vm_parity.py
 #  Confirms the bytecode VM produces IDENTICAL
 #  output to the tree-walk interpreter for every
 #  program the VM currently supports.
@@ -8,7 +8,7 @@
 #  supports straight-line code, check/otherwise,
 #  and keep loops. It does NOT yet support loop
 #  (classic for), make/return (functions), hear
-#  (input), or stop (break) — those are future
+#  (input), or stop (break) -- those are future
 #  milestones. Tests here are scoped accordingly.
 # ─────────────────────────────────────────────
 
@@ -69,28 +69,28 @@ def test_division_precision():
 def test_check_otherwise_true_branch():
     assert_parity(
         'let age = 19\ncheck age >= 18 {\n    yap "adult"\n} otherwise {\n    yap "minor"\n}',
-        "check/otherwise — true branch taken"
+        "check/otherwise -- true branch taken"
     )
 
 
 def test_check_otherwise_false_branch():
     assert_parity(
         'let age = 15\ncheck age >= 18 {\n    yap "adult"\n} otherwise {\n    yap "minor"\n}',
-        "check/otherwise — false branch taken"
+        "check/otherwise -- false branch taken"
     )
 
 
 def test_check_without_otherwise():
     assert_parity(
         'let x = 5\ncheck x > 10 {\n    yap "big"\n}\nyap "after"',
-        "check with no otherwise — condition false does nothing"
+        "check with no otherwise -- condition false does nothing"
     )
 
 
 def test_keep_loop():
     assert_parity(
         'let i = 0\nkeep i < 5 {\n    yap i\n    i = i + 1\n}\nyap "finished"',
-        "keep (while) loop — basic counting"
+        "keep (while) loop -- basic counting"
     )
 
 
