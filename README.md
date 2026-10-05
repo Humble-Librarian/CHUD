@@ -1,215 +1,302 @@
-# CHUD — Custom High-level User Development Language
+# 💻 CHUD — Custom High-level User Development Language
 
-**CHUD** is a modern, educational programming language and visual compiler workbench designed to make every stage of code execution tangible and inspectable. It features a maximal-munch lexer, a recursive-descent parser, dual execution engines (a scoped **Tree-Walk Interpreter** and a stack-based **Bytecode Compiler & Virtual Machine**), and an interactive **Browser Studio**.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-zero%20(stdlib%20only)-brightgreen.svg)](#-zero-external-dependencies)
+[![Platform](https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20macos-lightgrey.svg)](#-universal-cross-platform-support)
+[![Architecture](https://img.shields.io/badge/arch-32--bit%20%7C%2064--bit%20%7C%20ARM-orange.svg)](#-universal-cross-platform-support)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![CHUD pipeline architecture](pipeline.png)
+**CHUD** is a complete, educational, production-grade programming language, multi-engine compiler pipeline, and visual development workbench built entirely from scratch with **zero external dependencies**.
 
----
-
-## Key Highlights
-
-- **Dual Execution Engines**: Execute programs via an AST Tree-Walk Interpreter or compile to a stack-based Bytecode VM with 100% execution parity.
-- **Interactive Visual Studio**: Inspect Abstract Syntax Trees (AST), Concrete Parse Trees (CST), Lexical Tokens, and formatted JSON in real time.
-- **Lexical Tokens Data Table**: Search, filter by token category, inspect lexemes, and click any row to jump directly to that line in the source editor.
-- **Collapsible JSON Tree Inspector**: Interactive expandable tree viewer with live node counts, tree depth, payload size metrics, and one-click JSON export.
-- **Zero External Dependencies**: Built entirely with Python's standard library (`http.server`, `json`, `urllib`). Runs out of the box with zero pip packages required.
+It transforms high-level source code through a full compiler toolchain—featuring **Maximal-Munch Lexical Analysis**, **LL(1) Recursive-Descent Parsing**, **Dual Tree Generation (CST & AST)**, **Two-Level Optimizations (AST Folding & Bytecode Peephole)**, **Triple Execution Engines** (Tree-Walk Interpreter, Fast Slot-Based Bytecode VM, and Standalone C99 AOT Native Executable Generator with 100% parity), and an interactive **Browser Studio & Tree Visualizer**.
 
 ---
 
-## Language Capabilities
-
-| Feature | Syntax & Details |
-|---|---|
-| **Variables & Types** | `let name = "Alice"` (declaration), `name = "Bob"` (reassignment), Numbers (`42`, `3.14`), Strings (`"hello"`), Booleans (`W` = true, `L` = false) |
-| **Arithmetic & Logic** | `+`, `-`, `*`, `/`, `%` (modulo), unary `+` / `-`, `!` / `not` (negation), boolean logic (`and`, `or` with short-circuiting), string concatenation, comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`) |
-| **Conditionals** | `check condition { ... } otherwise { ... }` with truthiness semantics |
-| **Loops & Flow** | `keep condition { ... }` (while-loop), `loop let i = 0; i < 5; i = i + 1 { ... }` (for-loop), `stop` (break), and `skip` (continue) |
-| **Functions** | `make func(a, b) { return a + b }` with parameter passing, lexical scoping, recursion, and return values |
-| **Interactive I/O** | `yap "message"` (print output), `hear "prompt"` (runtime user input with automatic type coercion) |
+![CHUD Compiler Pipeline](pipeline.png)
 
 ---
 
-## Quick Start
+## ⚡ Quick Start in 60 Seconds
 
-### Prerequisites
-- **Python 3.9+**
-- Modern Web Browser (Chrome, Firefox, Safari, Edge)
+You only need **Python 3.9+**. No `pip install` required!
 
-### 1. Launch the Visualizer Studio
+### 1. 🌐 Launch the Interactive Visualizer Studio Web IDE
+Launch the built-in local development server and open the interactive visual compiler workbench:
 ```bash
 python server.py
 ```
-Open **[http://localhost:8000](http://localhost:8000)** in your browser.
+👉 Open **[http://localhost:8000](http://localhost:8000)** in your browser!
 
-To run on a custom port:
+*(To specify a custom port: `python server.py 8080`)*
+
+---
+
+### 2. 🏃 Run CHUD Programs from the Command Line
+
+#### A. Run via Fast Bytecode Virtual Machine (Recommended)
 ```bash
-python server.py 8080
+python chud.py game.chud --vm
+```
+With maximum AST & Bytecode optimizations:
+```bash
+python chud.py game.chud --vm -O2 --opt-stats
 ```
 
-### 2. Run CHUD Programs from CLI
-Execute standalone `.chud` script files:
+#### B. Run via Scoped Tree-Walk Interpreter
 ```bash
 python chud.py game.chud
-python chud.py rizz_calculator.chud
 ```
 
-Or start the interactive REPL:
+#### C. Compile to a Standalone Native Binary (`.exe` on Windows / ELF binary on Linux / Mach-O on macOS)
+```bash
+python chud.py -c game.chud -o game.exe
+./game.exe
+```
+
+#### D. Compile to Portable Binary Bytecode (`.chudc`) with CRC32 Verification
+```bash
+# 1. Compile source into binary bytecode
+python chud.py --emit-bc game.chud -O2 -o game.chudc
+
+# 2. Execute binary bytecode directly on the VM
+python chud.py game.chudc
+```
+
+#### E. Launch the Interactive REPL
 ```bash
 python chud.py
 ```
-
-### 3. Run Automated Verification Suites
-```bash
-# Full test suite (Compiler, CST, AST, Interpreter, Server, Frontend)
-python test_all.py
-
-# Bytecode VM <-> Interpreter parity test suite (26 tests)
-python test_vm_parity.py
+```text
+╔════════════════════════════════════════════════════════════════╗
+║                     CHUD Interactive REPL                      ║
+║     Custom High-level User Development Language (v2.0)         ║
+║     Type 'quit' or 'exit' to leave. 'help' for commands.       ║
+╚════════════════════════════════════════════════════════════════╝
+chud> let greeting = "Hello, World!"
+chud> yap greeting
+Hello, World!
+chud> let user = { "name": "Chad", "score": 9000 }
+chud> yap user["name"] + " -> " + user["score"]
+Chad -> 9000
 ```
 
 ---
 
-## Interactive Studio Features
+## 📖 Language Syntax & Tour
 
-The CHUD Visualizer Studio provides a split-pane IDE workspace:
-
-### Left Column: Source Cockpit & Execution Console
-- **Source Editor**: Line-number gutter, syntax tracking, line counter, one-click copy, and example program loader.
-- **Bottom Execution Drawer**:
-  - **Console Output**: Real-time execution logs with timestamps and compiler diagnostic cards.
-  - **Environment Scope Table**: Live inspection of active variables, data types (`number`, `string`, `boolean`), and values.
-  - **Interactive Input Modal**: In-app modal for `hear` prompts with keyboard shortcuts (`Enter` to submit, `Esc` to cancel).
-
-### Right Column: Syntax & Structure Inspector
-- **Interactive D3 Graphs (AST & CST)**:
-  - High-precision engineering node cards color-coded by grammar category (Statement, Expression, Control, Literal, Rule, Token).
-  - Dot-grid background, smooth pan/zoom camera controls, node search filtering, branch collapse/expand, and vector SVG export.
-  - **Tree Stats HUD**: Live node count, hierarchy depth, statement count, and CST-to-AST compactness percentage.
-- **Lexical Tokens Pro Data Table**:
-  - Structured columns: `#` Index, `Token Type` pill, `Value / Lexeme`, `Category`, `Line` jump tag, and `Copy` action.
-  - Category filters: `All`, `Keywords`, `Identifiers`, `Literals`, `Operators`.
-  - Live search input matching token names, values, or line numbers.
-  - Switcher between **Data Table View** and **Pills Stream View**.
-- **Interactive JSON Tree Inspector**:
-  - Segmented toggle between `AST` and `CST` JSON structures.
-  - Interactive collapsible tree with color-coded keys, strings, numbers, and booleans.
-  - Live metrics badges: Total Nodes, Max Depth, and File Size in KB.
-  - Formatted raw code viewer, one-click clipboard copy, and `.json` file download.
-- **Themes**: Space Dark, Studio Light, Midnight Blue, and Titanium Monochrome.
-
----
-
-## Code Example
+CHUD features an intuitive, modern syntax with expressive data structures and built-in standard library utilities:
 
 ```chud
-// Define a function
-make calculate_bonus(years, base) {
-    check years >= 5 {
-        return base * 1.5
-    } otherwise {
-        return base * 1.1
-    }
+// ─────────────────────────────────────────────
+//  1. Multi-File Modules
+// ─────────────────────────────────────────────
+// use "math_utils.chud"
+
+// ─────────────────────────────────────────────
+//  2. Variables, Numbers, Strings, and Booleans
+// ─────────────────────────────────────────────
+let player_name = "Alex"
+let level = 42
+let is_champion = W       // 'W' = True, 'L' = False
+let precision = 3.14159
+
+// ─────────────────────────────────────────────
+//  3. Dictionaries / Key-Value Hash Maps
+// ─────────────────────────────────────────────
+let stats = {
+    "hp": 100,
+    "mana": 50,
+    "speed": 12.5
+}
+stats["hp"] = 120          // Update value
+yap "Player HP: " + stats["hp"]
+yap "Has mana? " + has(stats, "mana")
+yap "Keys: " + keys(stats)
+
+// ─────────────────────────────────────────────
+//  4. Dynamic Arrays & Built-ins
+// ─────────────────────────────────────────────
+let inventory = ["Sword", "Shield", "Potion"]
+push(inventory, "Bow")     // Append element
+let last_item = pop(inventory)
+yap "Inventory count: " + len(inventory)
+
+// ─────────────────────────────────────────────
+//  5. String Slicing & Standard Utilities
+// ─────────────────────────────────────────────
+let text = "   CHUD Production Engine   "
+let clean = trim(text)
+yap lower(clean)           // "chud production engine"
+yap upper(clean)           // "CHUD PRODUCTION ENGINE"
+let words = split(clean, " ")
+yap "First word: " + words[0]
+yap "Sliced: " + slice(clean, 0, 4)
+
+// ─────────────────────────────────────────────
+//  6. Conditionals & Logic
+// ─────────────────────────────────────────────
+check level >= 50 and is_champion {
+    yap "Master Rank Unlocked!"
+} otherwise {
+    yap "Keep Grinding, " + player_name
 }
 
-let employee = hear "Enter employee name: "
-let experience = 6
-let salary = 50000
+// ─────────────────────────────────────────────
+//  7. Loops (keep & classic loop)
+// ─────────────────────────────────────────────
+// While loop:
+let count = 0
+keep count < 3 {
+    count = count + 1
+    check count == 2 { skip }   // continue
+    yap "Count: " + count
+}
 
-let total = calculate_bonus(experience, salary)
-yap employee + " total compensation: " + total
+// For loop:
+loop let i = 0; i < 5; i = i + 1 {
+    check i == 4 { stop }       // break
+    yap "Iteration: " + i
+}
 
-// Loop example
-loop let i = 1; i <= 3; i = i + 1 {
-    yap "Review milestone: " + i
+// ─────────────────────────────────────────────
+//  8. User-Defined Functions & Recursion
+// ─────────────────────────────────────────────
+make calculate_power(base, exp) {
+    check exp <= 0 {
+        return 1
+    }
+    return base * calculate_power(base, exp - 1)
+}
+yap "2^8 = " + calculate_power(2, 8)
+
+// ─────────────────────────────────────────────
+//  9. Disk File I/O
+// ─────────────────────────────────────────────
+let save_file = "savegame.txt"
+write_file(save_file, "Score: 9999\nLevel: 42")
+check file_exists(save_file) {
+    let saved_data = read_file(save_file)
+    yap "Loaded Save:\n" + saved_data
 }
 ```
 
 ---
 
-## System Architecture
+## 🎨 Interactive Studio Web Workbench
+
+The browser-based Studio (`python server.py` at `http://localhost:8000`) provides a visual compiler lab:
 
 ```text
-               ┌──────────────────────────────┐
-               │         CHUD Source          │
-               └──────────────┬───────────────┘
-                              │
-                              ▼
-               ┌──────────────────────────────┐
-               │    Lexer (Maximal-Munch)     │
-               └──────────────┬───────────────┘
-                              │ Token Stream
-                              ▼
-               ┌──────────────────────────────┐
-               │   Recursive-Descent Parser   │
-               └───────┬──────────────┬───────┘
-                       │              │
-           AST Nodes   │              │ CST Derivation Tree
-                       ▼              ▼
-     ┌───────────────────────┐  ┌───────────────────────┐
-     │     AST Serializer    │  │     CST Generator     │
-     └─────────┬─────────────┘  └──────────┬────────────┘
-               │                           │
-               ├───────────────────────────┤
-               │                           │
-               ▼                           ▼
- ┌───────────────────────────┐   ┌───────────────────────────┐
- │   Tree-Walk Interpreter   │   │   Bytecode Compiler & VM  │
- │     (interpreter.py)      │   │    (compiler.py / vm.py)  │
- └─────────────┬─────────────┘   └─────────────┬─────────────┘
-               │                               │
-               └───────────────┬───────────────┘
-                               │ JSON API (/api/parse, /api/run, /api/all)
-                               ▼
-               ┌───────────────────────────────┐
-               │      CHUD Studio Web UI       │
-               │   (D3 Graphs, Tables, JSON)   │
-               └───────────────────────────────┘
+┌────────────────────────────────────────┬────────────────────────────────────────┐
+│ 📝 SOURCE COCKPIT & RUNTIME DRAWER     │ 🌳 VISUAL TREE & SYNTAX INSPECTOR      │
+├────────────────────────────────────────┼────────────────────────────────────────┤
+│ • Monaco-Style Code Editor with Gutter │ • D3.js AST & CST Interactive Graphs   │
+│ • Sample Program Dropdown Selector     │ • Live Pan, Zoom & Branch Collapse     │
+│ • Real-time Output & Diagnostic Log    │ • Lexical Tokens Pro Data Table View   │
+│ • Live Scoped Environment Variables    │ • Collapsible JSON Tree Inspector      │
+│ • Interactive Prompt Input Modal       │ • One-Click SVG & JSON File Exports    │
+└────────────────────────────────────────┴────────────────────────────────────────┘
 ```
 
-### Module Overview
+---
 
-| File | Purpose |
+## ⚙️ The Triple Execution Engines
+
+CHUD provides **3 interchangeable execution engines** designed for 100% identical runtime behavior:
+
+```mermaid
+flowchart TD
+    Source["📄 CHUD Source Code"] --> Parser["🌳 Parser & AST Builder"]
+    
+    Parser --> Opt["⚡ Two-Level Optimizer<br>(-O1 AST Folding / -O2 Bytecode Peephole)"]
+    
+    Opt --> E1["1️⃣ Scoped Tree-Walk Interpreter<br>(interpreter.py)"]
+    Opt --> E2["2️⃣ Slot-Based Stack Bytecode VM<br>(compiler.py / vm.py)"]
+    Opt --> E3["3️⃣ Standalone C99 AOT Generator<br>(c_codegen.py → GCC/Clang)"]
+    
+    E2 --> Dist["📦 Binary Bytecode Distribution<br>(.chudc with CRC32 Header)"]
+    E3 --> Native["🚀 Native Executable<br>(.exe / ELF / Mach-O)"]
+    
+    style Source fill:#313244,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4
+    style Parser fill:#181825,stroke:#f9e2af,stroke-width:2px,color:#cdd6f4
+    style Opt fill:#11111b,stroke:#a6e3a1,stroke-width:2px,color:#cdd6f4
+    style E1 fill:#181825,stroke:#cba6f7,stroke-width:2px,color:#cdd6f4
+    style E2 fill:#181825,stroke:#89dceb,stroke-width:2px,color:#cdd6f4
+    style E3 fill:#181825,stroke:#fab387,stroke-width:2px,color:#cdd6f4
+    style Dist fill:#11111b,stroke:#f38ba8,stroke-width:2px,color:#cdd6f4
+    style Native fill:#11111b,stroke:#a6e3a1,stroke-width:2px,color:#cdd6f4
+```
+
+1. **Tree-Walk Interpreter (`interpreter.py`)**: Traverses the AST recursively with lexical `Environment` scoping, automatic type checking, and infinite loop recursion protection.
+2. **Fast Slot-Based Bytecode VM (`compiler.py`, `vm.py`, `bytecode.py`)**: Compiles AST into a linear instruction stream. Local variables and parameters are mapped to integer slots (`LOAD_FAST`, `STORE_FAST`) for direct list indexing without hash table lookups.
+3. **Standalone Native C99 Compiler (`c_codegen.py`)**: Transpiles the AST into clean C99 code with an embedded runtime arena, an open-addressing hash table (`CHUD_Map`), and dynamic array memory management. Compiles to native binary executables with zero runtime dependencies.
+
+---
+
+## 🌐 Universal Cross-Platform Support
+
+CHUD runs out of the box on:
+- **Operating Systems**: Windows 10/11, Ubuntu / Debian / Fedora / Arch Linux, macOS (Intel & Apple Silicon).
+- **Architectures**: 32-bit `x86`, 64-bit `x86_64`, `ARM32`, `ARM64` (Apple Silicon M1/M2/M3/M4), `RISC-V`.
+- **Bytecode Portability**: All `.chudc` binary files use explicit little-endian fixed-width types (`<I`, `<q`, `<d`). A binary compiled on Windows runs identically on Linux or macOS.
+
+---
+
+## 🧪 Comprehensive Verification Suites
+
+Run the test matrix to verify all components on your system:
+
+```bash
+# 1. Verify all 5 production language features across Interpreter, VM, and C backend
+python test_production_features.py
+
+# 2. Verify Lexer, Parser, CST, AST, Interpreter, Server, and Web IDE endpoints
+python test_all.py
+
+# 3. Verify AST constant folding & bytecode peephole optimizer
+python test_optimizer.py
+
+# 4. Verify 100% execution parity between Interpreter and Bytecode VM
+python test_vm_parity.py
+
+# 5. Verify Native C99 codegen, heap tracking, and GCC/Clang compilation
+python test_native_codegen.py
+
+# 6. Verify Binary .chudc bytecode serialization & CRC32 corruption detection
+python test_bytecode_serialization.py
+```
+
+---
+
+## 📁 Repository Directory Structure
+
+| File Path | Description |
 |---|---|
-| [`lexer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/lexer.py) | Tokenizes source code into structured tokens with line numbers |
-| [`parser.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/parser.py) | Builds Abstract Syntax Tree (AST) using recursive-descent parsing |
-| [`ast_nodes.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py) | Class definitions for AST nodes (Statements, Expressions, Functions) |
-| [`ast_serializer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_serializer.py) | Serializes AST nodes into D3 hierarchy format |
-| [`cst_generator.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/cst_generator.py) | Generates full Concrete Parse Tree (CST) capturing grammar rules and tokens |
-| [`interpreter.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/interpreter.py) | Tree-walk interpreter with lexical environments and error diagnostics |
-| [`compiler.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/compiler.py) | Bytecode compiler emitting chunk instructions and constant pools |
-| [`vm.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/vm.py) | Stack-based Bytecode Virtual Machine with function call frames |
-| [`bytecode.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode.py) | Opcode definitions (`OP_CONST`, `OP_LOAD`, `OP_ADD`, `OP_JUMP`, `OP_CALL`, etc.) and disassembler |
-| [`server.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/server.py) | Standard-library HTTP server hosting static files and JSON endpoints |
-| [`chud.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/chud.py) | Command-line file executor and interactive REPL |
-| [`index.html`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/index.html) | Studio markup with split-pane layout, token table, and JSON inspector |
-| [`style.css`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/style.css) | Custom themes, glassmorphism, responsive data table, and canvas styling |
-| [`app.js`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/app.js) | Frontend controller, D3 tree graph rendering, token filters, and JSON viewer |
+| [`lexer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/lexer.py) | Maximal-munch regular expression lexer with exact line number tracking |
+| [`parser.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/parser.py) | LL(1) recursive-descent syntax parser with precedence cascading |
+| [`ast_nodes.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_nodes.py) | AST data model schemas for statements, expressions, control flow, and maps |
+| [`ast_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_optimizer.py) | AST-level constant folder, dead branch pruner, and algebraic simplifier |
+| [`bytecode.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode.py) | Bytecode opcode set, `Chunk` container, `CallFrame`, and disassembler |
+| [`compiler.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/compiler.py) | Single-pass bytecode compiler with jump backpatching and fast local slots |
+| [`bytecode_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode_optimizer.py) | Sliding-window peephole optimizer, jump threader, and dead code stripper |
+| [`bytecode_serializer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode_serializer.py) | Binary `.chudc` cross-platform serializer with CRC32 checksum verification |
+| [`vm.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/vm.py) | Stack-based Virtual Machine with `CallFrame` slot indexing |
+| [`interpreter.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/interpreter.py) | Scoped Tree-Walk Interpreter with lexical `Environment` chaining |
+| [`c_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/c_codegen.py) | Standalone C99 AOT transpiler and native executable compiler |
+| [`chud.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/chud.py) | Unified CLI tool for running, compiling, optimizing, and REPL |
+| [`server.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/server.py) | Zero-dependency HTTP server hosting the visualizer studio and REST API |
+| [`index.html`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/index.html) | Split-pane Studio Web IDE user interface |
+| [`style.css`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/style.css) | Modern IDE styling, responsive layouts, and multi-theme palette |
+| [`app.js`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/app.js) | Frontend controller managing D3 tree graphs, tables, and API sync |
+| [`test_production_features.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_production_features.py) | Test suite for Hash Maps, File I/O, String Utils, Modules, and Slot VM |
 | [`test_all.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_all.py) | End-to-end integration test suite |
-| [`test_vm_parity.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_vm_parity.py) | 19 parity test cases comparing Interpreter and VM execution |
+| [`test_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_optimizer.py) | Optimization verification test suite |
+| [`test_vm_parity.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_vm_parity.py) | Automated parity test suite for Interpreter vs. Bytecode VM |
+| [`test_native_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_native_codegen.py) | Native C99 compilation and execution test suite |
+| [`test_bytecode_serialization.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_bytecode_serialization.py) | Binary `.chudc` serialization and checksum validation tests |
 
 ---
 
-## HTTP JSON API
+## 📄 License
 
-The Python server provides endpoints on port `8000`:
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/parse` | `POST` | Parses code and returns token stream, AST data, and CST data |
-| `/api/compile` | `POST` | Compiles AST into bytecode chunks with disassembled instructions |
-| `/api/run` | `POST` | Executes code and returns terminal output, runtime variables, and errors |
-| `/api/all` | `POST` | Parses, executes, and serializes all trees and tokens in a single request |
-
-### Example Request Body
-```json
-{
-  "code": "let score = 10\nyap score * 2",
-  "inputs": []
-}
-```
-
----
-
-## License
-
-CHUD is open-source software released under the [MIT License](LICENSE).
+CHUD is open-source software licensed under the [MIT License](LICENSE).
