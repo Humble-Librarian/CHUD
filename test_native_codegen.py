@@ -34,6 +34,16 @@ make bubble_sort(arr) {
     return arr
 }
 
+// Test loop with skip (continue) - must not infinite loop
+let evens = []
+loop let k = 0; k < 10; k = k + 1 {
+    check k % 2 != 0 {
+        skip
+    }
+    push(evens, k)
+}
+yap "Evens: " + evens
+
 yap "Factorial of 6: " + fact(6)
 let list = [99, 12, 55, 1, 8, 43]
 yap "Before sort: " + list

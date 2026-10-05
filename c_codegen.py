@@ -72,17 +72,53 @@ static void chud_track_alloc(void* ptr) {
     g_allocs[g_alloc_count++] = ptr;
 }
 
+/* Dedicated Tracker for Dynamic Arrays (prevents double-free when realloc moves items) */
+static CHUD_Array** g_arrays = NULL;
+static int g_array_count = 0;
+static int g_array_cap = 0;
+
+static void chud_track_array(CHUD_Array* arr) {
+    if (!arr) return;
+    if (g_array_count >= g_array_cap) {
+        g_array_cap = (g_array_cap == 0) ? 32 : g_array_cap * 2;
+        g_arrays = (CHUD_Array**)realloc(g_arrays, sizeof(CHUD_Array*) * g_array_cap);
+    }
+    g_arrays[g_array_count++] = arr;
+}
+
 static void chud_runtime_init(void) {}
 
 static void chud_runtime_cleanup(void) {
+    /* 1. Cleanly free all dynamic array items and array headers */
+    for (int i = 0; i < g_array_count; i++) {
+        if (g_arrays[i]) {
+            if (g_arrays[i]->items) {
+                free(g_arrays[i]->items);
+                g_arrays[i]->items = NULL;
+            }
+            free(g_arrays[i]);
+            g_arrays[i] = NULL;
+        }
+    }
+    if (g_arrays) {
+        free(g_arrays);
+        g_arrays = NULL;
+        g_array_count = 0;
+        g_array_cap = 0;
+    }
+
+    /* 2. Free all tracked scalar heap allocations */
     for (int i = 0; i < g_alloc_count; i++) {
         if (g_allocs[i]) {
             free(g_allocs[i]);
+            g_allocs[i] = NULL;
         }
     }
     if (g_allocs) {
         free(g_allocs);
         g_allocs = NULL;
+        g_alloc_count = 0;
+        g_alloc_cap = 0;
     }
 }
 
@@ -127,11 +163,10 @@ static inline CHUD_Value chud_none(void) {
 
 static CHUD_Value chud_build_array(int count, CHUD_Value* items) {
     CHUD_Array* arr = (CHUD_Array*)malloc(sizeof(CHUD_Array));
-    chud_track_alloc(arr);
+    chud_track_array(arr);
     arr->count = count;
     arr->capacity = (count > 4) ? count : 4;
     arr->items = (CHUD_Value*)malloc(sizeof(CHUD_Value) * arr->capacity);
-    chud_track_alloc(arr->items);
     for (int i = 0; i < count; i++) {
         arr->items[i] = items[i];
     }
@@ -497,19 +532,20 @@ class CCodeGenerator:
             return f"{ind}while (chud_is_truthy({cond_code})) {{\n{body_code}\n{ind}}}"
 
         if isinstance(node, LoopNode):
-            # C scoped block
+            # Native C for loop scoped block (preserves update on continue/skip)
             self.indent_level += 1
             init_code = self.generate_statement(node.initializer).strip() if node.initializer else ""
             cond_code = self.generate_expr(node.condition)
             update_code = self.generate_statement(node.update).strip() if node.update else ""
+            if update_code.endswith(";"):
+                update_code = update_code[:-1].strip()
             body_code = "\n".join(self.generate_statement(s) for s in node.body)
             self.indent_level -= 1
             return (
                 f"{ind}{{\n"
                 f"{ind}    {init_code}\n"
-                f"{ind}    while (chud_is_truthy({cond_code})) {{\n"
+                f"{ind}    for (; chud_is_truthy({cond_code}); {update_code}) {{\n"
                 f"{body_code}\n"
-                f"{ind}        {update_code}\n"
                 f"{ind}    }}\n"
                 f"{ind}}}"
             )
