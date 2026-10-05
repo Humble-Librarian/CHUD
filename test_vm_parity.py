@@ -276,6 +276,33 @@ loop let i = 0; i < 5; i = i + 1 {
     assert_parity(src, "skip (continue) inside classic for loop")
 
 
+def test_function_scoping_and_shadowing():
+    src = '''
+let x = 100
+make modify(val) {
+    let x = val * 2
+    return x
+}
+let res = modify(5)
+yap res
+yap x
+'''
+    assert_parity(src, "function local shadowing vs global scope")
+
+
+def test_deep_recursion_stack():
+    src = '''
+make sum_to(n) {
+    check n <= 0 {
+        return 0
+    }
+    return n + sum_to(n - 1)
+}
+yap sum_to(50)
+'''
+    assert_parity(src, "deep recursion with CallFrame stack (depth 50)")
+
+
 if __name__ == '__main__':
     test_straight_line_arithmetic()
     test_string_concat_and_stringify()
@@ -303,5 +330,8 @@ if __name__ == '__main__':
     test_short_circuit_behavior()
     test_skip_in_keep_loop()
     test_skip_in_classic_for_loop()
+    test_function_scoping_and_shadowing()
+    test_deep_recursion_stack()
 
     print("\n[CHUD] VM <-> INTERPRETER PARITY FULLY VERIFIED -- bytecode backend is a drop-in match.")
+

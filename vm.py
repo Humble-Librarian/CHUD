@@ -11,7 +11,7 @@
 #  VM is ready for them).
 # ─────────────────────────────────────────────
 
-from bytecode import OpCode, CHUDFunctionProto
+from bytecode import OpCode, CHUDFunctionProto, CallFrame
 from lexer import roast
 
 
@@ -22,7 +22,9 @@ class VMRuntimeError(Exception):
 class VM:
     def __init__(self, input_fn=None, output_fn=None):
         self.stack     = []          # the value stack
-        self.variables = {}          # variable table
+        self.globals   = {}          # global variable table
+        self.variables = self.globals# alias for testing/external compatibility
+        self.frames    = []          # call stack of CallFrame objects
         self.output    = []          # collected yap output
         self.output_fn = output_fn   # optional live callback
         self.input_fn  = input_fn or input  # input callback for hear
@@ -64,22 +66,33 @@ class VM:
 
     # ══════════════════════════════════════════
     #  THE MAIN LOOP
-    #  This is the entire "execution engine".
-    #  Everything else in this file just supports it.
+    #  Single-instance CallFrame stack machine.
     # ══════════════════════════════════════════
 
     def run(self, chunk):
         self.stack = []
+        self.output = []
+        self.globals = {}
+        self.variables = self.globals
         stack = self.stack
-        constants = chunk.constants
-        variables = self.variables
-        instructions = [(instr.op, instr.arg, instr.line) for instr in chunk.instructions]
-        n_instructions = len(instructions)
-        ip = 0
+
+        # Initialize root/main call frame
+        main_proto = CHUDFunctionProto("<main>", [], chunk)
+        self.frames = [CallFrame(main_proto, self.globals)]
 
         try:
-            while ip < n_instructions:
-                op, arg, line = instructions[ip]
+            while self.frames:
+                frame = self.frames[-1]
+                instructions = frame.instructions
+                constants = frame.constants
+
+                if frame.ip >= len(instructions):
+                    self.frames.pop()
+                    if self.frames:
+                        stack.append(None)
+                    continue
+
+                op, arg, line = instructions[frame.ip]
 
                 # ── stack basics ──
                 if op == OpCode.PUSH_CONST:
@@ -90,21 +103,28 @@ class VM:
 
                 # ── variables ──
                 elif op == OpCode.STORE_VAR:
-                    variables[arg] = stack.pop()
+                    frame.locals[arg] = stack.pop()
 
                 elif op == OpCode.ASSIGN_VAR:
-                    if arg not in variables:
+                    val = stack.pop()
+                    for f in reversed(self.frames):
+                        if arg in f.locals:
+                            f.locals[arg] = val
+                            break
+                    else:
                         raise VMRuntimeError(
                             f"line {line}: Cannot assign to '{arg}' before declaring with 'let'.\n→ {roast()}"
                         )
-                    variables[arg] = stack.pop()
 
                 elif op == OpCode.LOAD_VAR:
-                    if arg not in variables:
+                    for f in reversed(self.frames):
+                        if arg in f.locals:
+                            stack.append(f.locals[arg])
+                            break
+                    else:
                         raise VMRuntimeError(
                             f"line {line}: Variable '{arg}' is not defined.\n→ {roast()}"
                         )
-                    stack.append(variables[arg])
 
                 # ── arithmetic ──
                 elif op == OpCode.ADD:
@@ -192,15 +212,14 @@ class VM:
 
                 # ── control flow ──
                 elif op == OpCode.JUMP:
-                    ip = arg
+                    frame.ip = arg
                     continue
 
                 elif op == OpCode.JUMP_IF_FALSE:
                     cond = stack.pop()
                     if not cond:
-                        ip = arg
+                        frame.ip = arg
                         continue
-                    # else: fall through, ip += 1 as normal
 
                 # ── I/O ──
                 elif op == OpCode.PRINT:
@@ -232,47 +251,61 @@ class VM:
                 elif op == OpCode.CALL:
                     fn_name, arg_count = arg
                     args = [stack.pop() for _ in range(arg_count)][::-1]
-                    if fn_name not in variables:
+                    fn_proto = None
+                    for f in reversed(self.frames):
+                        if fn_name in f.locals:
+                            fn_proto = f.locals[fn_name]
+                            break
+                    if fn_proto is None:
                         raise VMRuntimeError(f"line {line}: Function '{fn_name}' is not defined.")
-                    fn_proto = variables[fn_name]
                     if not isinstance(fn_proto, CHUDFunctionProto):
                         raise VMRuntimeError(f"line {line}: '{fn_name}' is not a function.")
                     if len(args) != len(fn_proto.parameters):
                         raise VMRuntimeError(
                             f"line {line}: Function '{fn_name}' expects {len(fn_proto.parameters)} args, got {len(args)}."
                         )
-                    child_vm = VM(input_fn=self.input_fn, output_fn=self.output_fn)
-                    child_vm.variables.update(variables)
-                    for p_name, p_val in zip(fn_proto.parameters, args):
-                        child_vm.variables[p_name] = p_val
-                    res = child_vm.run(fn_proto.chunk)
-                    self.output.extend(child_vm.output)
-                    if not res["success"]:
-                        raise VMRuntimeError(res["error"])
-                    stack.append(res.get("return_value"))
+                    if len(self.frames) >= 1000:
+                        raise VMRuntimeError(f"line {line}: Maximum call stack depth exceeded.\n→ {roast()}")
+
+                    # Advance caller ip to next instruction before pushing callee frame
+                    frame.ip += 1
+                    callee_locals = {p: v for p, v in zip(fn_proto.parameters, args)}
+                    callee_frame = CallFrame(fn_proto, locals_dict=callee_locals)
+                    self.frames.append(callee_frame)
+                    continue
 
                 elif op == OpCode.RETURN:
                     ret_val = stack.pop() if stack else None
-                    return {
-                        "success": True,
-                        "output": self.output,
-                        "variables": {k: self.stringify(v) for k, v in self.variables.items()},
-                        "error": None,
-                        "return_value": ret_val
-                    }
+                    self.frames.pop()
+                    if self.frames:
+                        stack.append(ret_val)
+                        continue
+                    else:
+                        return {
+                            "success": True,
+                            "output": self.output,
+                            "variables": {k: self.stringify(v) for k, v in self.globals.items() if not isinstance(v, CHUDFunctionProto)},
+                            "error": None,
+                            "return_value": ret_val
+                        }
 
                 elif op == OpCode.HALT:
-                    break
+                    self.frames.pop()
+                    if self.frames:
+                        stack.append(None)
+                        continue
+                    else:
+                        break
 
                 else:
-                    raise VMRuntimeError(f"Unknown opcode '{op}' at instruction {ip}")
+                    raise VMRuntimeError(f"Unknown opcode '{op}' at instruction {frame.ip}")
 
-                ip += 1
+                frame.ip += 1
 
             return {
                 "success": True,
                 "output": self.output,
-                "variables": {k: self.stringify(v) for k, v in self.variables.items()},
+                "variables": {k: self.stringify(v) for k, v in self.globals.items() if not isinstance(v, CHUDFunctionProto)},
                 "error": None,
                 "return_value": None
             }
@@ -281,7 +314,7 @@ class VM:
             return {
                 "success": False,
                 "output": self.output,
-                "variables": {k: self.stringify(v) for k, v in self.variables.items()},
+                "variables": {k: self.stringify(v) for k, v in self.globals.items() if not isinstance(v, CHUDFunctionProto)},
                 "error": str(e),
                 "return_value": None
             }

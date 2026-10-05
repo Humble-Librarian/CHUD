@@ -70,6 +70,21 @@ class CHUDFunctionProto:
         return f"<fn {self.name}({', '.join(self.parameters)})>"
 
 
+class CallFrame:
+    """Execution context for a function invocation on the VM call stack."""
+    __slots__ = ('proto', 'ip', 'locals', 'constants', 'instructions')
+
+    def __init__(self, proto, locals_dict=None):
+        self.proto        = proto
+        self.ip           = 0
+        self.locals       = locals_dict if locals_dict is not None else {}
+        self.constants    = proto.chunk.constants
+        self.instructions = [(instr.op, instr.arg, instr.line) for instr in proto.chunk.instructions]
+
+    def __repr__(self):
+        return f"<CallFrame {self.proto.name} ip={self.ip}>"
+
+
 class Instruction:
     """One bytecode instruction."""
     __slots__ = ('op', 'arg', 'line')
