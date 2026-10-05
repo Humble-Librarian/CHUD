@@ -127,6 +127,8 @@ class Parser:
         elif tok.type == 'SKIP':
             self.advance()
             return SkipNode(line=tok.line)
+        elif tok.type == 'USE':
+            return self.parse_use()
         elif tok.type == 'ID':
             if self.tokens[self.pos + 1].type == 'LPAREN':
                 return self.parse_expression()
@@ -139,6 +141,12 @@ class Parser:
                 f"unexpected token {tok.type} ({repr(tok.value)}) at start of statement\n"
                 f"→ {roast()}"
             )
+
+    def parse_use(self):
+        use_tok = self.expect('USE')
+        path_tok = self.expect('STRING')
+        path_val = path_tok.value.strip('"')
+        return UseNode(path_val, line=use_tok.line)
 
     def parse_indexed_or_expr_statement(self):
         name_tok = self.expect('ID')
@@ -460,6 +468,25 @@ class Parser:
                     elements.append(self.parse_expression())
             self.expect('RBRACKET')             # consume ']'
             return ArrayLiteralNode(elements, line=tok.line)
+
+        if tok.type == 'LBRACE':
+            self.advance()                      # consume '{'
+            pairs = []
+            if not self.check('RBRACE'):
+                k = self.parse_expression()
+                self.expect('COLON')
+                v = self.parse_expression()
+                pairs.append((k, v))
+                while self.check('COMMA'):
+                    self.advance()              # consume ','
+                    if self.check('RBRACE'):
+                        break
+                    k = self.parse_expression()
+                    self.expect('COLON')
+                    v = self.parse_expression()
+                    pairs.append((k, v))
+            self.expect('RBRACE')               # consume '}'
+            return DictLiteralNode(pairs, line=tok.line)
 
         if tok.type == 'HEAR':
             self.advance()                      # consume 'hear'

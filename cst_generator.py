@@ -53,6 +53,7 @@ RULE_MAPPING = {
     'parse_loop': 'loop_stmt',
     'parse_function': 'make_stmt',
     'parse_return': 'return_stmt',
+    'parse_use': 'use_stmt',
     'parse_block': 'block',
     'parse_expression': 'expression',
     'parse_logic_or': 'logic_or',

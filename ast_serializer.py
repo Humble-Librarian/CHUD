@@ -195,6 +195,24 @@ def ast_to_d3(node):
             "children": [ast_to_d3(elem) for elem in node.elements]
         }
 
+    if isinstance(node, DictLiteralNode):
+        return {
+            "name": f"dict {{{len(node.pairs)} pairs}}",
+            "type": "DictLiteral",
+            "line": node.line,
+            "children": [
+                {"name": "pair", "type": "Label", "children": [ast_to_d3(k), ast_to_d3(v)]}
+                for k, v in node.pairs
+            ]
+        }
+
+    if isinstance(node, UseNode):
+        return {
+            "name": f'use "{node.module_path}"',
+            "type": "Use",
+            "line": node.line
+        }
+
     if isinstance(node, IndexAccessNode):
         return {
             "name": "index_access",

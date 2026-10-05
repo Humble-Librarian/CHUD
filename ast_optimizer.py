@@ -13,7 +13,8 @@ from ast_nodes import (
     NumberNode, StringNode, BoolNode, IdentifierNode,
     CheckNode, KeepNode, LoopNode, StopNode, SkipNode, HearNode,
     FunctionNode, CallNode, ReturnNode,
-    ArrayLiteralNode, IndexAccessNode, IndexAssignNode
+    ArrayLiteralNode, IndexAccessNode, IndexAssignNode,
+    DictLiteralNode, UseNode
 )
 
 
@@ -72,10 +73,15 @@ class ASTOptimizer:
         elif isinstance(node, ArrayLiteralNode):
             for el in node.elements:
                 count += self.count_nodes(el)
+        elif isinstance(node, DictLiteralNode):
+            for k, v in node.pairs:
+                count += self.count_nodes(k) + self.count_nodes(v)
         elif isinstance(node, IndexAccessNode):
             count += self.count_nodes(node.target) + self.count_nodes(node.index)
         elif isinstance(node, IndexAssignNode):
             count += self.count_nodes(node.target) + self.count_nodes(node.index) + self.count_nodes(node.value)
+        elif isinstance(node, UseNode):
+            pass
         return count
 
     def optimize(self, ast):
@@ -113,10 +119,14 @@ class ASTOptimizer:
             return self._transform_return(node)
         if isinstance(node, ArrayLiteralNode):
             return self._transform_array_literal(node)
+        if isinstance(node, DictLiteralNode):
+            return self._transform_dict_literal(node)
         if isinstance(node, IndexAccessNode):
             return self._transform_index_access(node)
         if isinstance(node, IndexAssignNode):
             return self._transform_index_assign(node)
+        if isinstance(node, UseNode):
+            return node
 
         # Leaf nodes (NumberNode, StringNode, BoolNode, IdentifierNode, StopNode, SkipNode, HearNode)
         return node
@@ -377,6 +387,10 @@ class ASTOptimizer:
     def _transform_array_literal(self, node):
         opt_elements = [self._transform(el) for el in node.elements]
         return ArrayLiteralNode(opt_elements, line=node.line)
+
+    def _transform_dict_literal(self, node):
+        opt_pairs = [(self._transform(k), self._transform(v)) for k, v in node.pairs]
+        return DictLiteralNode(opt_pairs, line=node.line)
 
     def _transform_index_access(self, node):
         opt_target = self._transform(node.target)

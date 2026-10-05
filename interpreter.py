@@ -1,15 +1,11 @@
-# ─────────────────────────────────────────────
-#  CHUD — interpreter.py
-#  Tree-walk interpreter for CHUD AST.
-#  Evaluates expressions and executes statements.
-# ─────────────────────────────────────────────
-
+import os
 from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
     KeepNode, StopNode, SkipNode, BinOpNode, UnaryOpNode,
     NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
     LoopNode, FunctionNode, CallNode, ReturnNode,
-    ArrayLiteralNode, IndexAccessNode, IndexAssignNode
+    ArrayLiteralNode, IndexAccessNode, IndexAssignNode,
+    DictLiteralNode, UseNode
 )
 from lexer import Lexer, roast
 from parser import Parser
@@ -93,6 +89,10 @@ class Interpreter:
             return str(int(val))
         if isinstance(val, list):
             return "[" + ", ".join(self.stringify(x) for x in val) + "]"
+        if isinstance(val, dict):
+            return "{" + ", ".join(f"{self.stringify(k)}: {self.stringify(v)}" for k, v in val.items()) + "}"
+        if val is None:
+            return "None"
         return str(val)
 
     def is_truthy(self, val):
@@ -107,6 +107,8 @@ class Interpreter:
             return "string"
         if isinstance(value, list):
             return "array"
+        if isinstance(value, dict):
+            return "dict"
         return type(value).__name__
 
     def _runtime_error(self, node, message):
@@ -131,14 +133,22 @@ class Interpreter:
         if isinstance(node, IdentifierNode):
             return env.get(node.name)
 
+        if isinstance(node, DictLiteralNode):
+            d = {}
+            for k_expr, v_expr in node.pairs:
+                k = self.eval_expr(k_expr, env)
+                v = self.eval_expr(v_expr, env)
+                d[k] = v
+            return d
+
         if isinstance(node, CallNode):
             # Built-in function: len
             if node.name == 'len':
                 if len(node.arguments) != 1:
                     raise self._runtime_error(node, f"'len' expects 1 argument, but received {len(node.arguments)}.")
                 target = self.eval_expr(node.arguments[0], env)
-                if not isinstance(target, (list, str)):
-                    raise self._runtime_error(node, f"'len' argument must be an array or string, not {self._type_name(target)}.")
+                if not isinstance(target, (list, str, dict)):
+                    raise self._runtime_error(node, f"'len' argument must be array, string, or dict, not {self._type_name(target)}.")
                 return len(target)
 
             # Built-in function: push
@@ -162,6 +172,132 @@ class Interpreter:
                 if not target:
                     raise self._runtime_error(node, "Cannot pop from an empty array.")
                 return target.pop()
+
+            # Built-in function: keys
+            if node.name == 'keys':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'keys' expects 1 argument (dict), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                if not isinstance(target, dict):
+                    raise self._runtime_error(node, f"'keys' argument must be a dict, not {self._type_name(target)}.")
+                return list(target.keys())
+
+            # Built-in function: values
+            if node.name == 'values':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'values' expects 1 argument (dict), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                if not isinstance(target, dict):
+                    raise self._runtime_error(node, f"'values' argument must be a dict, not {self._type_name(target)}.")
+                return list(target.values())
+
+            # Built-in function: has
+            if node.name == 'has':
+                if len(node.arguments) != 2:
+                    raise self._runtime_error(node, f"'has' expects 2 arguments (dict/array, key/item), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                key = self.eval_expr(node.arguments[1], env)
+                if isinstance(target, (dict, list, str)):
+                    return key in target
+                raise self._runtime_error(node, f"'has' first argument must be dict, array, or string, not {self._type_name(target)}.")
+
+            # Built-in function: read_file
+            if node.name == 'read_file':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'read_file' expects 1 argument (path), but received {len(node.arguments)}.")
+                path = self.eval_expr(node.arguments[0], env)
+                if not isinstance(path, str):
+                    raise self._runtime_error(node, f"'read_file' path must be a string, not {self._type_name(path)}.")
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        return f.read()
+                except Exception as e:
+                    raise self._runtime_error(node, f"Failed to read file '{path}': {e}")
+
+            # Built-in function: write_file
+            if node.name == 'write_file':
+                if len(node.arguments) != 2:
+                    raise self._runtime_error(node, f"'write_file' expects 2 arguments (path, content), but received {len(node.arguments)}.")
+                path = self.eval_expr(node.arguments[0], env)
+                content = self.eval_expr(node.arguments[1], env)
+                if not isinstance(path, str) or not isinstance(content, str):
+                    raise self._runtime_error(node, "'write_file' path and content must be strings.")
+                try:
+                    with open(path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    return None
+                except Exception as e:
+                    raise self._runtime_error(node, f"Failed to write file '{path}': {e}")
+
+            # Built-in function: file_exists
+            if node.name == 'file_exists':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'file_exists' expects 1 argument (path), but received {len(node.arguments)}.")
+                path = self.eval_expr(node.arguments[0], env)
+                if not isinstance(path, str):
+                    raise self._runtime_error(node, f"'file_exists' path must be a string, not {self._type_name(path)}.")
+                return os.path.exists(path)
+
+            # Built-in function: slice
+            if node.name == 'slice':
+                if len(node.arguments) != 3:
+                    raise self._runtime_error(node, f"'slice' expects 3 arguments (target, start, end), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                start = self.eval_expr(node.arguments[1], env)
+                end = self.eval_expr(node.arguments[2], env)
+                if not isinstance(target, (list, str)):
+                    raise self._runtime_error(node, f"'slice' target must be array or string, not {self._type_name(target)}.")
+                if not isinstance(start, int) or not isinstance(end, int):
+                    raise self._runtime_error(node, "'slice' start and end indices must be integers.")
+                return target[start:end]
+
+            # Built-in function: split
+            if node.name == 'split':
+                if len(node.arguments) != 2:
+                    raise self._runtime_error(node, f"'split' expects 2 arguments (string, delimiter), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                delim = self.eval_expr(node.arguments[1], env)
+                if not isinstance(target, str) or not isinstance(delim, str):
+                    raise self._runtime_error(node, "'split' requires string arguments.")
+                return target.split(delim)
+
+            # Built-in function: trim
+            if node.name == 'trim':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'trim' expects 1 argument (string), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                if not isinstance(target, str):
+                    raise self._runtime_error(node, f"'trim' argument must be string, not {self._type_name(target)}.")
+                return target.strip()
+
+            # Built-in function: lower
+            if node.name == 'lower':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'lower' expects 1 argument (string), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                if not isinstance(target, str):
+                    raise self._runtime_error(node, f"'lower' argument must be string, not {self._type_name(target)}.")
+                return target.lower()
+
+            # Built-in function: upper
+            if node.name == 'upper':
+                if len(node.arguments) != 1:
+                    raise self._runtime_error(node, f"'upper' expects 1 argument (string), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                if not isinstance(target, str):
+                    raise self._runtime_error(node, f"'upper' argument must be string, not {self._type_name(target)}.")
+                return target.upper()
+
+            # Built-in function: replace
+            if node.name == 'replace':
+                if len(node.arguments) != 3:
+                    raise self._runtime_error(node, f"'replace' expects 3 arguments (string, old, new), but received {len(node.arguments)}.")
+                target = self.eval_expr(node.arguments[0], env)
+                old_s = self.eval_expr(node.arguments[1], env)
+                new_s = self.eval_expr(node.arguments[2], env)
+                if not isinstance(target, str) or not isinstance(old_s, str) or not isinstance(new_s, str):
+                    raise self._runtime_error(node, "'replace' arguments must be strings.")
+                return target.replace(old_s, new_s)
 
             function = env.get(node.name)
             if not isinstance(function, CHUDFunction):
@@ -189,12 +325,16 @@ class Interpreter:
         if isinstance(node, IndexAccessNode):
             target = self.eval_expr(node.target, env)
             index = self.eval_expr(node.index, env)
+            if isinstance(target, dict):
+                if index not in target:
+                    raise self._runtime_error(node, f"Key '{index}' not found in dictionary.")
+                return target[index]
             if not isinstance(target, (list, str)):
-                raise self._runtime_error(node, f"Cannot index into non-array/string type {self._type_name(target)}.")
+                raise self._runtime_error(node, f"Cannot index into non-array/string/dict type {self._type_name(target)}.")
             if not isinstance(index, int) or isinstance(index, bool):
-                raise self._runtime_error(node, f"Array index must be an integer, not {self._type_name(index)}.")
+                raise self._runtime_error(node, f"Array/String index must be an integer, not {self._type_name(index)}.")
             if index < 0 or index >= len(target):
-                raise self._runtime_error(node, f"Array index out of bounds (index {index}, length {len(target)}).")
+                raise self._runtime_error(node, f"Index out of bounds (index {index}, length {len(target)}).")
             return target[index]
 
         if isinstance(node, HearNode):
@@ -311,13 +451,27 @@ class Interpreter:
             target = self.eval_expr(node.target, env)
             index = self.eval_expr(node.index, env)
             val = self.eval_expr(node.value, env)
+            if isinstance(target, dict):
+                target[index] = val
+                return
             if not isinstance(target, list):
-                raise self._runtime_error(node, f"Cannot assign index to non-array type {self._type_name(target)}.")
+                raise self._runtime_error(node, f"Cannot assign index to non-array/dict type {self._type_name(target)}.")
             if not isinstance(index, int) or isinstance(index, bool):
                 raise self._runtime_error(node, f"Array index must be an integer, not {self._type_name(index)}.")
             if index < 0 or index >= len(target):
                 raise self._runtime_error(node, f"Array index out of bounds (index {index}, length {len(target)}).")
             target[index] = val
+            return
+
+        if isinstance(node, UseNode):
+            mod_path = node.module_path
+            if not os.path.exists(mod_path):
+                raise self._runtime_error(node, f"Cannot use module '{mod_path}': File not found.")
+            with open(mod_path, 'r', encoding='utf-8') as f:
+                mod_code = f.read()
+            mod_tokens = Lexer(mod_code).tokenize()
+            mod_ast = Parser(mod_tokens).parse()
+            self.execute(mod_ast, env)
             return
 
         if isinstance(node, YapNode):

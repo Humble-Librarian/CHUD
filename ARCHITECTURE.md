@@ -285,6 +285,39 @@ flowchart TD
 
 ---
 
+### 📦 Stage 5: Production-Grade Language Features
+**Files involved:** [`lexer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/lexer.py), [`parser.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/parser.py), [`interpreter.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/interpreter.py), [`compiler.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/compiler.py), [`vm.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/vm.py), [`c_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/c_codegen.py)
+
+CHUD provides 5 enterprise language features delivering complete parity across the Tree-Walk Interpreter, Stack VM, and Native C99 Executables:
+
+1. **Dictionaries & Key-Value Hash Maps (`{ key: value }`):**
+   - Literal map construction `{ "name": "Chad", "score": 9000 }`.
+   - Dynamic subscript indexing & assignment: `user["name"]`, `user["score"] = 9001`.
+   - Built-ins: `keys(map)`, `values(map)`, `has(map, key)`.
+   - Single-header C backend utilizes an open-addressing / bucketed hash table with FNV-1a hashing and leak-free `g_maps` arena tracking.
+
+2. **Basic File I/O Built-ins:**
+   - `read_file(path)`: reads full text content from disk.
+   - `write_file(path, content)`: writes UTF-8 text strings to disk.
+   - `file_exists(path)`: returns boolean (`W`/`L`) file presence check.
+
+3. **Standard String Slicing & Utilities:**
+   - `slice(target, start, end)`: slicing for strings and arrays with negative index wrap-around.
+   - `split(str, sep)`: string tokenization into arrays.
+   - `trim(str)`: whitespace trimming.
+   - `lower(str)` & `upper(str)`: case transformation.
+   - `replace(str, old, new)`: substring replacement.
+
+4. **Multi-File Module System (`use "module.chud"`):**
+   - Enables modular codebase composition with compile-time AST inlining.
+   - Zero runtime overhead and seamless compatibility with VM chunks and AOT C99 binaries.
+
+5. **Slot-Based Bytecode VM (`LOAD_FAST` / `STORE_FAST`):**
+   - Compiles local function variable names to fixed integer slot offsets at compile time.
+   - Replaces hash map dictionary lookups in tight loops with array slot indexing, providing substantial execution speedups.
+
+---
+
 ## 📁 Complete File Directory Reference
 
 | File Path | Primary Function |
@@ -297,16 +330,17 @@ flowchart TD
 | [`cst_generator.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/cst_generator.py) | Full Concrete Syntax Tree generator capturing all grammar non-terminals, tokens, and punctuation. |
 | [`ast_serializer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/ast_serializer.py) | D3-compliant tree serializer with node hierarchy formatting, tree depth calculation, and compactness metrics. |
 | [`interpreter.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/interpreter.py) | Scoped Tree-Walk Interpreter with lexical `Environment` chaining, runtime type-checking, and loop safety limits. |
-| [`compiler.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/compiler.py) | Single-pass bytecode compiler translating AST into bytecode chunks with constant pooling and jump backpatching. |
-| [`vm.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/vm.py) | Stack-based Virtual Machine with `CallFrame` subroutine management, instruction dispatch, and runtime stack. |
+| [`compiler.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/compiler.py) | Single-pass bytecode compiler translating AST into bytecode chunks with fast local slots and jump backpatching. |
+| [`vm.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/vm.py) | Stack-based Virtual Machine with `CallFrame` slot indexing, instruction dispatch, and runtime stack. |
 | [`bytecode.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode.py) | Bytecode `OpCode` definitions, numeric IDs, `Chunk` container, `CHUDFunctionProto`, and human-readable disassembler. |
 | [`bytecode_serializer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/bytecode_serializer.py) | Cross-platform binary serializer and fast deserializer for `.chudc` files with CRC32 integrity checks. |
-| [`c_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/c_codegen.py) | Standalone C99 code generator and AOT compiler producing native bare-metal executables via GCC. |
+| [`c_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/c_codegen.py) | Standalone C99 code generator and AOT compiler with hash table runtime producing native bare-metal executables. |
 | [`server.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/server.py) | Zero-dependency HTTP server (`http.server`) hosting the studio web client and REST JSON API endpoints. |
 | [`chud.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/chud.py) | Standalone CLI entrypoint supporting `.chud` scripts, `.chudc` binaries, `-O` optimization flags, `--opt-stats`, and REPL. |
 | [`index.html`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/index.html) | Split-pane Studio Web IDE user interface with D3 canvas, token data table, and JSON inspector. |
 | [`style.css`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/style.css) | Custom styling, CSS variable design systems, responsive split panes, and multi-theme definitions. |
 | [`app.js`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/app.js) | Frontend controller managing D3 graph rendering, zoom/pan controls, token filtering, and API communication. |
+| [`test_production_features.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_production_features.py) | Verification test suite for Dictionaries, File I/O, String Utilities, Multi-File Modules, and Slot VM. |
 | [`test_all.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_all.py) | End-to-end integration test suite verifying Lexer, Parser, CST, AST, Interpreter, and Server components. |
 | [`test_optimizer.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_optimizer.py) | Unit & parity test suite for Phase 4 AST constant folding, dead branch pruning, and bytecode peephole optimizations. |
 | [`test_vm_parity.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_vm_parity.py) | Automated parity test suite verifying identical execution between the Tree-Walk Interpreter and Bytecode VM. |
@@ -341,6 +375,7 @@ python chud.py -c rizz_calculator.chud -o rizz_calc.exe
 python chud.py
 
 # 6. Run Complete Test Matrix
+python test_production_features.py
 python test_all.py
 python test_optimizer.py
 python test_vm_parity.py

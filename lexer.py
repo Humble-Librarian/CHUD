@@ -40,6 +40,7 @@ KEYWORDS = {
     'loop'     : 'LOOP',        # classic for loop
     'make'     : 'MAKE',        # function declaration
     'return'   : 'RETURN',      # function return
+    'use'      : 'USE',         # module import
     'and'      : 'AND',         # logical and
     'or'       : 'OR',          # logical or
     'not'      : 'NOT',         # logical not
@@ -76,6 +77,8 @@ TOKEN_PATTERNS = [
     ('RBRACE',  re.compile(r'\}')),               # }
     ('LBRACKET',re.compile(r'\[')),               # [
     ('RBRACKET',re.compile(r'\]')),               # ]
+    ('COLON',   re.compile(r':')),                # :    key-value separator
+    ('DOT',     re.compile(r'\.')),               # .    member access
     ('COMMA',   re.compile(r',')),                # ,
     ('SEMI',    re.compile(r';')),                 # ; (used by loop headers)
     ('ID',      re.compile(r'[a-zA-Z_][a-zA-Z0-9_]*')),  # variable names & keywords

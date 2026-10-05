@@ -16,7 +16,8 @@ from ast_nodes import (
     KeepNode, StopNode, SkipNode, BinOpNode, UnaryOpNode,
     NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
     LoopNode, FunctionNode, CallNode, ReturnNode,
-    ArrayLiteralNode, IndexAccessNode, IndexAssignNode
+    ArrayLiteralNode, IndexAccessNode, IndexAssignNode,
+    DictLiteralNode, UseNode
 )
 
 
@@ -30,6 +31,7 @@ CHUD_RUNTIME_HEADER = r'''/* -- CHUD Standalone C Runtime (chud_runtime.h) -- */
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 #include <math.h>
 
 typedef enum {
@@ -37,10 +39,12 @@ typedef enum {
     CHUD_TYPE_STRING,
     CHUD_TYPE_BOOL,
     CHUD_TYPE_ARRAY,
+    CHUD_TYPE_MAP,
     CHUD_TYPE_NONE
 } CHUD_Type;
 
 struct CHUD_Array;
+struct CHUD_Map;
 
 typedef struct CHUD_Value {
     CHUD_Type type;
@@ -49,6 +53,7 @@ typedef struct CHUD_Value {
         char* string;
         bool boolean;
         struct CHUD_Array* array;
+        struct CHUD_Map* map;
     } as;
 } CHUD_Value;
 
@@ -57,6 +62,18 @@ typedef struct CHUD_Array {
     int count;
     int capacity;
 } CHUD_Array;
+
+typedef struct CHUD_MapEntry {
+    char* key;
+    CHUD_Value value;
+    struct CHUD_MapEntry* next;
+} CHUD_MapEntry;
+
+typedef struct CHUD_Map {
+    CHUD_MapEntry** buckets;
+    int bucket_count;
+    int size;
+} CHUD_Map;
 
 /* Memory Tracker for Safe Cleanup */
 static void** g_allocs = NULL;
@@ -86,6 +103,20 @@ static void chud_track_array(CHUD_Array* arr) {
     g_arrays[g_array_count++] = arr;
 }
 
+/* Dedicated Tracker for Maps */
+static CHUD_Map** g_maps = NULL;
+static int g_map_count = 0;
+static int g_map_cap = 0;
+
+static void chud_track_map(CHUD_Map* map) {
+    if (!map) return;
+    if (g_map_count >= g_map_cap) {
+        g_map_cap = (g_map_cap == 0) ? 32 : g_map_cap * 2;
+        g_maps = (CHUD_Map**)realloc(g_maps, sizeof(CHUD_Map*) * g_map_cap);
+    }
+    g_maps[g_map_count++] = map;
+}
+
 static void chud_runtime_init(void) {}
 
 static void chud_runtime_cleanup(void) {
@@ -107,7 +138,31 @@ static void chud_runtime_cleanup(void) {
         g_array_cap = 0;
     }
 
-    /* 2. Free all tracked scalar heap allocations */
+    /* 2. Cleanly free all hash maps */
+    for (int i = 0; i < g_map_count; i++) {
+        if (g_maps[i]) {
+            for (int b = 0; b < g_maps[i]->bucket_count; b++) {
+                CHUD_MapEntry* cur = g_maps[i]->buckets[b];
+                while (cur) {
+                    CHUD_MapEntry* next = cur->next;
+                    if (cur->key) free(cur->key);
+                    free(cur);
+                    cur = next;
+                }
+            }
+            if (g_maps[i]->buckets) free(g_maps[i]->buckets);
+            free(g_maps[i]);
+            g_maps[i] = NULL;
+        }
+    }
+    if (g_maps) {
+        free(g_maps);
+        g_maps = NULL;
+        g_map_count = 0;
+        g_map_cap = 0;
+    }
+
+    /* 3. Free all tracked scalar heap allocations */
     for (int i = 0; i < g_alloc_count; i++) {
         if (g_allocs[i]) {
             free(g_allocs[i]);
@@ -176,6 +231,80 @@ static CHUD_Value chud_build_array(int count, CHUD_Value* items) {
     return v;
 }
 
+/* Hash Map Support */
+static unsigned int chud_hash_str(const char* s) {
+    unsigned int hash = 5381;
+    int c;
+    while ((c = (unsigned char)*s++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    return hash;
+}
+
+static CHUD_Value chud_build_map(int pair_count, char** keys, CHUD_Value* values) {
+    CHUD_Map* map = (CHUD_Map*)malloc(sizeof(CHUD_Map));
+    chud_track_map(map);
+    map->bucket_count = (pair_count > 8) ? pair_count * 2 : 16;
+    map->size = 0;
+    map->buckets = (CHUD_MapEntry**)calloc(map->bucket_count, sizeof(CHUD_MapEntry*));
+    for (int i = 0; i < pair_count; i++) {
+        unsigned int h = chud_hash_str(keys[i]) % map->bucket_count;
+        CHUD_MapEntry* entry = (CHUD_MapEntry*)malloc(sizeof(CHUD_MapEntry));
+        entry->key = (char*)malloc(strlen(keys[i]) + 1);
+        strcpy(entry->key, keys[i]);
+        entry->value = values[i];
+        entry->next = map->buckets[h];
+        map->buckets[h] = entry;
+        map->size++;
+    }
+    CHUD_Value v;
+    v.type = CHUD_TYPE_MAP;
+    v.as.map = map;
+    return v;
+}
+
+static char* chud_stringify(CHUD_Value v);
+
+static CHUD_Value chud_map_get(CHUD_Value target, CHUD_Value key) {
+    if (target.type != CHUD_TYPE_MAP) chud_panic("Cannot map-get non-map type.");
+    char* kstr = chud_stringify(key);
+    CHUD_Map* map = target.as.map;
+    unsigned int h = chud_hash_str(kstr) % map->bucket_count;
+    CHUD_MapEntry* cur = map->buckets[h];
+    while (cur) {
+        if (strcmp(cur->key, kstr) == 0) {
+            return cur->value;
+        }
+        cur = cur->next;
+    }
+    char buf[256];
+    snprintf(buf, sizeof(buf), "Key '%s' not found in dictionary.", kstr);
+    chud_panic(buf);
+    return chud_none();
+}
+
+static void chud_map_set(CHUD_Value target, CHUD_Value key, CHUD_Value val) {
+    if (target.type != CHUD_TYPE_MAP) chud_panic("Cannot map-set non-map type.");
+    char* kstr = chud_stringify(key);
+    CHUD_Map* map = target.as.map;
+    unsigned int h = chud_hash_str(kstr) % map->bucket_count;
+    CHUD_MapEntry* cur = map->buckets[h];
+    while (cur) {
+        if (strcmp(cur->key, kstr) == 0) {
+            cur->value = val;
+            return;
+        }
+        cur = cur->next;
+    }
+    CHUD_MapEntry* entry = (CHUD_MapEntry*)malloc(sizeof(CHUD_MapEntry));
+    entry->key = (char*)malloc(strlen(kstr) + 1);
+    strcpy(entry->key, kstr);
+    entry->value = val;
+    entry->next = map->buckets[h];
+    map->buckets[h] = entry;
+    map->size++;
+}
+
 /* Value Helpers & Conversions */
 static char* chud_stringify(CHUD_Value v) {
     char buf[128];
@@ -217,6 +346,35 @@ static char* chud_stringify(CHUD_Value v) {
         strcat(out, "]");
         return out;
     }
+    if (v.type == CHUD_TYPE_MAP) {
+        CHUD_Map* map = v.as.map;
+        size_t cap = 256;
+        char* out = (char*)malloc(cap);
+        chud_track_alloc(out);
+        strcpy(out, "{");
+        int count = 0;
+        for (int b = 0; b < map->bucket_count; b++) {
+            CHUD_MapEntry* cur = map->buckets[b];
+            while (cur) {
+                char* val_str = chud_stringify(cur->value);
+                size_t needed = strlen(out) + strlen(cur->key) + strlen(val_str) + 8;
+                if (needed > cap) {
+                    cap = needed * 2;
+                    out = (char*)realloc(out, cap);
+                }
+                strcat(out, cur->key);
+                strcat(out, ": ");
+                strcat(out, val_str);
+                count++;
+                if (count < map->size) {
+                    strcat(out, ", ");
+                }
+                cur = cur->next;
+            }
+        }
+        strcat(out, "}");
+        return out;
+    }
     return "None";
 }
 
@@ -225,6 +383,7 @@ static inline bool chud_is_truthy(CHUD_Value v) {
     if (v.type == CHUD_TYPE_NUMBER) return v.as.number != 0;
     if (v.type == CHUD_TYPE_STRING) return strlen(v.as.string) > 0;
     if (v.type == CHUD_TYPE_ARRAY) return v.as.array->count > 0;
+    if (v.type == CHUD_TYPE_MAP) return v.as.map->size > 0;
     return false;
 }
 
@@ -287,6 +446,7 @@ static CHUD_Value chud_eq(CHUD_Value a, CHUD_Value b) {
     if (a.type == CHUD_TYPE_BOOL) return chud_bool(a.as.boolean == b.as.boolean);
     if (a.type == CHUD_TYPE_STRING) return chud_bool(strcmp(a.as.string, b.as.string) == 0);
     if (a.type == CHUD_TYPE_ARRAY) return chud_bool(a.as.array == b.as.array);
+    if (a.type == CHUD_TYPE_MAP) return chud_bool(a.as.map == b.as.map);
     return chud_bool(true);
 }
 
@@ -315,13 +475,16 @@ static CHUD_Value chud_gte(CHUD_Value a, CHUD_Value b) {
     return chud_bool(a.as.number >= b.as.number);
 }
 
-/* Arrays & Builtins */
+/* Arrays & Maps Access */
 static CHUD_Value chud_array_get(CHUD_Value target, CHUD_Value index) {
+    if (target.type == CHUD_TYPE_MAP) {
+        return chud_map_get(target, index);
+    }
     if (target.type != CHUD_TYPE_ARRAY && target.type != CHUD_TYPE_STRING) {
-        chud_panic("Cannot index into non-array/string type.");
+        chud_panic("Cannot index into non-array/string/map type.");
     }
     if (index.type != CHUD_TYPE_NUMBER) {
-        chud_panic("Array index must be an integer.");
+        chud_panic("Array/String index must be an integer.");
     }
     int idx = (int)index.as.number;
     if (target.type == CHUD_TYPE_ARRAY) {
@@ -342,8 +505,12 @@ static CHUD_Value chud_array_get(CHUD_Value target, CHUD_Value index) {
 }
 
 static void chud_array_set(CHUD_Value target, CHUD_Value index, CHUD_Value val) {
+    if (target.type == CHUD_TYPE_MAP) {
+        chud_map_set(target, index, val);
+        return;
+    }
     if (target.type != CHUD_TYPE_ARRAY) {
-        chud_panic("Cannot assign index to non-array type.");
+        chud_panic("Cannot assign index to non-array/map type.");
     }
     if (index.type != CHUD_TYPE_NUMBER) {
         chud_panic("Array index must be an integer.");
@@ -356,6 +523,7 @@ static void chud_array_set(CHUD_Value target, CHUD_Value index, CHUD_Value val) 
     arr->items[idx] = val;
 }
 
+/* Builtins: len, push, pop */
 static CHUD_Value chud_builtin_len(CHUD_Value target) {
     if (target.type == CHUD_TYPE_ARRAY) {
         return chud_num(target.as.array->count);
@@ -363,7 +531,10 @@ static CHUD_Value chud_builtin_len(CHUD_Value target) {
     if (target.type == CHUD_TYPE_STRING) {
         return chud_num(strlen(target.as.string));
     }
-    chud_panic("'len' expects array or string argument.");
+    if (target.type == CHUD_TYPE_MAP) {
+        return chud_num(target.as.map->size);
+    }
+    chud_panic("'len' expects array, string, or map argument.");
     return chud_none();
 }
 
@@ -389,6 +560,276 @@ static CHUD_Value chud_builtin_pop(CHUD_Value target) {
         chud_panic("Cannot pop from an empty array.");
     }
     return arr->items[--arr->count];
+}
+
+/* Builtins: keys, values, has */
+static CHUD_Value chud_builtin_keys(CHUD_Value target) {
+    if (target.type != CHUD_TYPE_MAP) chud_panic("'keys' argument must be a map.");
+    CHUD_Map* map = target.as.map;
+    CHUD_Value* items = (CHUD_Value*)malloc(sizeof(CHUD_Value) * (map->size > 0 ? map->size : 1));
+    int idx = 0;
+    for (int b = 0; b < map->bucket_count; b++) {
+        CHUD_MapEntry* cur = map->buckets[b];
+        while (cur) {
+            items[idx++] = chud_str(cur->key);
+            cur = cur->next;
+        }
+    }
+    CHUD_Value res = chud_build_array(map->size, items);
+    free(items);
+    return res;
+}
+
+static CHUD_Value chud_builtin_values(CHUD_Value target) {
+    if (target.type != CHUD_TYPE_MAP) chud_panic("'values' argument must be a map.");
+    CHUD_Map* map = target.as.map;
+    CHUD_Value* items = (CHUD_Value*)malloc(sizeof(CHUD_Value) * (map->size > 0 ? map->size : 1));
+    int idx = 0;
+    for (int b = 0; b < map->bucket_count; b++) {
+        CHUD_MapEntry* cur = map->buckets[b];
+        while (cur) {
+            items[idx++] = cur->value;
+            cur = cur->next;
+        }
+    }
+    CHUD_Value res = chud_build_array(map->size, items);
+    free(items);
+    return res;
+}
+
+static CHUD_Value chud_builtin_has(CHUD_Value target, CHUD_Value key) {
+    if (target.type == CHUD_TYPE_MAP) {
+        char* kstr = chud_stringify(key);
+        CHUD_Map* map = target.as.map;
+        unsigned int h = chud_hash_str(kstr) % map->bucket_count;
+        CHUD_MapEntry* cur = map->buckets[h];
+        while (cur) {
+            if (strcmp(cur->key, kstr) == 0) return chud_bool(true);
+            cur = cur->next;
+        }
+        return chud_bool(false);
+    }
+    if (target.type == CHUD_TYPE_ARRAY) {
+        CHUD_Array* arr = target.as.array;
+        for (int i = 0; i < arr->count; i++) {
+            if (chud_eq(arr->items[i], key).as.boolean) return chud_bool(true);
+        }
+        return chud_bool(false);
+    }
+    if (target.type == CHUD_TYPE_STRING && key.type == CHUD_TYPE_STRING) {
+        return chud_bool(strstr(target.as.string, key.as.string) != NULL);
+    }
+    chud_panic("'has' expects map, array, or string target.");
+    return chud_bool(false);
+}
+
+/* Builtins: File I/O */
+static CHUD_Value chud_builtin_read_file(CHUD_Value path_val) {
+    if (path_val.type != CHUD_TYPE_STRING) chud_panic("'read_file' path must be a string.");
+    FILE* fp = fopen(path_val.as.string, "rb");
+    if (!fp) chud_panic("Failed to open file for reading.");
+    fseek(fp, 0, SEEK_END);
+    long sz = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    char* buf = (char*)malloc(sz + 1);
+    size_t read_bytes = fread(buf, 1, sz, fp);
+    buf[read_bytes] = '\0';
+    fclose(fp);
+    chud_track_alloc(buf);
+    CHUD_Value res;
+    res.type = CHUD_TYPE_STRING;
+    res.as.string = buf;
+    return res;
+}
+
+static CHUD_Value chud_builtin_write_file(CHUD_Value path_val, CHUD_Value content_val) {
+    if (path_val.type != CHUD_TYPE_STRING) chud_panic("'write_file' path must be a string.");
+    char* cstr = chud_stringify(content_val);
+    FILE* fp = fopen(path_val.as.string, "wb");
+    if (!fp) chud_panic("Failed to open file for writing.");
+    fputs(cstr, fp);
+    fclose(fp);
+    return chud_none();
+}
+
+static CHUD_Value chud_builtin_file_exists(CHUD_Value path_val) {
+    if (path_val.type != CHUD_TYPE_STRING) chud_panic("'file_exists' path must be a string.");
+    FILE* fp = fopen(path_val.as.string, "rb");
+    if (fp) {
+        fclose(fp);
+        return chud_bool(true);
+    }
+    return chud_bool(false);
+}
+
+/* Builtins: String Utilities */
+static CHUD_Value chud_builtin_slice(CHUD_Value target, CHUD_Value s_val, CHUD_Value e_val) {
+    if (s_val.type != CHUD_TYPE_NUMBER || e_val.type != CHUD_TYPE_NUMBER) {
+        chud_panic("'slice' indices must be numbers.");
+    }
+    int total_len = (target.type == CHUD_TYPE_ARRAY) ? target.as.array->count :
+                    (target.type == CHUD_TYPE_STRING) ? (int)strlen(target.as.string) : -1;
+    if (total_len == -1) chud_panic("'slice' target must be array or string.");
+
+    int start = (int)s_val.as.number;
+    int end = (int)e_val.as.number;
+    if (start < 0) start += total_len;
+    if (end < 0) end += total_len;
+    if (start < 0) start = 0;
+    if (end > total_len) end = total_len;
+    if (start > end) start = end;
+
+    if (target.type == CHUD_TYPE_ARRAY) {
+        int count = end - start;
+        CHUD_Value* slice_items = (CHUD_Value*)malloc(sizeof(CHUD_Value) * (count > 0 ? count : 1));
+        for (int i = 0; i < count; i++) {
+            slice_items[i] = target.as.array->items[start + i];
+        }
+        CHUD_Value res = chud_build_array(count, slice_items);
+        free(slice_items);
+        return res;
+    } else {
+        int count = end - start;
+        char* buf = (char*)malloc(count + 1);
+        memcpy(buf, target.as.string + start, count);
+        buf[count] = '\0';
+        chud_track_alloc(buf);
+        CHUD_Value res;
+        res.type = CHUD_TYPE_STRING;
+        res.as.string = buf;
+        return res;
+    }
+}
+
+static CHUD_Value chud_builtin_split(CHUD_Value target, CHUD_Value delim_val) {
+    if (target.type != CHUD_TYPE_STRING || delim_val.type != CHUD_TYPE_STRING) {
+        chud_panic("'split' requires string arguments.");
+    }
+    char* src = target.as.string;
+    char* delim = delim_val.as.string;
+    size_t dlen = strlen(delim);
+
+    CHUD_Value* items = NULL;
+    int count = 0;
+    int cap = 0;
+
+    if (dlen == 0) {
+        /* Split by char */
+        count = (int)strlen(src);
+        items = (CHUD_Value*)malloc(sizeof(CHUD_Value) * (count > 0 ? count : 1));
+        for (int i = 0; i < count; i++) {
+            char cbuf[2] = { src[i], '\0' };
+            items[i] = chud_str(cbuf);
+        }
+    } else {
+        char* cur = src;
+        while (1) {
+            char* next = strstr(cur, delim);
+            int part_len = next ? (int)(next - cur) : (int)strlen(cur);
+            char* part = (char*)malloc(part_len + 1);
+            memcpy(part, cur, part_len);
+            part[part_len] = '\0';
+
+            if (count >= cap) {
+                cap = (cap == 0) ? 8 : cap * 2;
+                items = (CHUD_Value*)realloc(items, sizeof(CHUD_Value) * cap);
+            }
+            items[count++] = chud_str(part);
+            free(part);
+
+            if (!next) break;
+            cur = next + dlen;
+        }
+    }
+    CHUD_Value res = chud_build_array(count, items);
+    if (items) free(items);
+    return res;
+}
+
+static CHUD_Value chud_builtin_trim(CHUD_Value target) {
+    if (target.type != CHUD_TYPE_STRING) chud_panic("'trim' argument must be string.");
+    char* s = target.as.string;
+    while (*s && isspace((unsigned char)*s)) s++;
+    int len = (int)strlen(s);
+    while (len > 0 && isspace((unsigned char)s[len - 1])) len--;
+    char* buf = (char*)malloc(len + 1);
+    memcpy(buf, s, len);
+    buf[len] = '\0';
+    chud_track_alloc(buf);
+    CHUD_Value res;
+    res.type = CHUD_TYPE_STRING;
+    res.as.string = buf;
+    return res;
+}
+
+static CHUD_Value chud_builtin_lower(CHUD_Value target) {
+    if (target.type != CHUD_TYPE_STRING) chud_panic("'lower' argument must be string.");
+    int len = (int)strlen(target.as.string);
+    char* buf = (char*)malloc(len + 1);
+    for (int i = 0; i < len; i++) {
+        buf[i] = tolower((unsigned char)target.as.string[i]);
+    }
+    buf[len] = '\0';
+    chud_track_alloc(buf);
+    CHUD_Value res;
+    res.type = CHUD_TYPE_STRING;
+    res.as.string = buf;
+    return res;
+}
+
+static CHUD_Value chud_builtin_upper(CHUD_Value target) {
+    if (target.type != CHUD_TYPE_STRING) chud_panic("'upper' argument must be string.");
+    int len = (int)strlen(target.as.string);
+    char* buf = (char*)malloc(len + 1);
+    for (int i = 0; i < len; i++) {
+        buf[i] = toupper((unsigned char)target.as.string[i]);
+    }
+    buf[len] = '\0';
+    chud_track_alloc(buf);
+    CHUD_Value res;
+    res.type = CHUD_TYPE_STRING;
+    res.as.string = buf;
+    return res;
+}
+
+static CHUD_Value chud_builtin_replace(CHUD_Value target, CHUD_Value old_val, CHUD_Value new_val) {
+    if (target.type != CHUD_TYPE_STRING || old_val.type != CHUD_TYPE_STRING || new_val.type != CHUD_TYPE_STRING) {
+        chud_panic("'replace' arguments must be strings.");
+    }
+    char* src = target.as.string;
+    char* old_s = old_val.as.string;
+    char* new_s = new_val.as.string;
+    size_t old_len = strlen(old_s);
+    size_t new_len = strlen(new_s);
+
+    if (old_len == 0) return target;
+
+    size_t cap = strlen(src) * 2 + 1;
+    char* out = (char*)malloc(cap);
+    out[0] = '\0';
+
+    char* cur = src;
+    while (1) {
+        char* next = strstr(cur, old_s);
+        if (!next) {
+            strcat(out, cur);
+            break;
+        }
+        size_t part_len = next - cur;
+        size_t needed = strlen(out) + part_len + new_len + 1;
+        if (needed > cap) {
+            cap = needed * 2;
+            out = (char*)realloc(out, cap);
+        }
+        strncat(out, cur, part_len);
+        strcat(out, new_s);
+        cur = next + old_len;
+    }
+    chud_track_alloc(out);
+    CHUD_Value res;
+    res.type = CHUD_TYPE_STRING;
+    res.as.string = out;
+    return res;
 }
 
 /* I/O Functions */
@@ -442,13 +883,38 @@ class CCodeGenerator:
     def _sanitize_fn(self, name):
         return f"chud_fn_{name}"
 
+    def _flatten_ast(self, statements, visited=None):
+        if visited is None:
+            visited = set()
+        flat = []
+        for stmt in statements:
+            if isinstance(stmt, UseNode):
+                mod_path = os.path.abspath(stmt.module_path)
+                if mod_path not in visited:
+                    visited.add(mod_path)
+                    if not os.path.exists(mod_path):
+                        # Try relative to cwd
+                        if os.path.exists(stmt.module_path):
+                            mod_path = os.path.abspath(stmt.module_path)
+                        else:
+                            raise RuntimeError(f"Cannot use module '{stmt.module_path}': File not found.")
+                    with open(mod_path, 'r', encoding='utf-8') as f:
+                        mod_code = f.read()
+                    mod_ast = Parser(Lexer(mod_code).tokenize()).parse()
+                    flat.extend(self._flatten_ast(mod_ast.statements, visited))
+            else:
+                flat.append(stmt)
+        return flat
+
     def generate(self, ast):
+        all_stmts = self._flatten_ast(ast.statements)
+
         # 1. Forward declare functions and separate top-level statements
         fn_protos = []
         fn_definitions = []
         main_body_stmts = []
 
-        for stmt in ast.statements:
+        for stmt in all_stmts:
             if isinstance(stmt, FunctionNode):
                 fn_name = self._sanitize_fn(stmt.name)
                 params = ", ".join(f"CHUD_Value {self._sanitize_id(p)}" for p in stmt.parameters)
@@ -563,6 +1029,9 @@ class CCodeGenerator:
         if isinstance(node, CallNode):
             return f"{ind}{self.generate_expr(node)};"
 
+        if isinstance(node, UseNode):
+            return f"{ind}/* Inlined use '{node.module_path}' */"
+
         return f"{ind}/* Unknown statement {type(node).__name__} */"
 
     def generate_expr(self, node):
@@ -586,6 +1055,13 @@ class CCodeGenerator:
             elems_c = ", ".join(self.generate_expr(e) for e in node.elements)
             return f"chud_build_array({len(node.elements)}, (CHUD_Value[]){{{elems_c}}})"
 
+        if isinstance(node, DictLiteralNode):
+            if not node.pairs:
+                return "chud_build_map(0, NULL, NULL)"
+            keys_c = ", ".join(self.generate_expr(k) + ".as.string" if isinstance(k, StringNode) else f"chud_stringify({self.generate_expr(k)})" for k, v in node.pairs)
+            vals_c = ", ".join(self.generate_expr(v) for k, v in node.pairs)
+            return f"chud_build_map({len(node.pairs)}, (char*[]){{{keys_c}}}, (CHUD_Value[]){{{vals_c}}})"
+
         if isinstance(node, IndexAccessNode):
             target_c = self.generate_expr(node.target)
             idx_c = self.generate_expr(node.index)
@@ -602,6 +1078,49 @@ class CCodeGenerator:
             if node.name == 'pop':
                 arg = self.generate_expr(node.arguments[0])
                 return f"chud_builtin_pop({arg})"
+            if node.name == 'keys':
+                arg = self.generate_expr(node.arguments[0])
+                return f"chud_builtin_keys({arg})"
+            if node.name == 'values':
+                arg = self.generate_expr(node.arguments[0])
+                return f"chud_builtin_values({arg})"
+            if node.name == 'has':
+                arg0 = self.generate_expr(node.arguments[0])
+                arg1 = self.generate_expr(node.arguments[1])
+                return f"chud_builtin_has({arg0}, {arg1})"
+            if node.name == 'read_file':
+                arg = self.generate_expr(node.arguments[0])
+                return f"chud_builtin_read_file({arg})"
+            if node.name == 'write_file':
+                arg0 = self.generate_expr(node.arguments[0])
+                arg1 = self.generate_expr(node.arguments[1])
+                return f"chud_builtin_write_file({arg0}, {arg1})"
+            if node.name == 'file_exists':
+                arg = self.generate_expr(node.arguments[0])
+                return f"chud_builtin_file_exists({arg})"
+            if node.name == 'slice':
+                arg0 = self.generate_expr(node.arguments[0])
+                arg1 = self.generate_expr(node.arguments[1])
+                arg2 = self.generate_expr(node.arguments[2])
+                return f"chud_builtin_slice({arg0}, {arg1}, {arg2})"
+            if node.name == 'split':
+                arg0 = self.generate_expr(node.arguments[0])
+                arg1 = self.generate_expr(node.arguments[1])
+                return f"chud_builtin_split({arg0}, {arg1})"
+            if node.name == 'trim':
+                arg = self.generate_expr(node.arguments[0])
+                return f"chud_builtin_trim({arg})"
+            if node.name == 'lower':
+                arg = self.generate_expr(node.arguments[0])
+                return f"chud_builtin_lower({arg})"
+            if node.name == 'upper':
+                arg = self.generate_expr(node.arguments[0])
+                return f"chud_builtin_upper({arg})"
+            if node.name == 'replace':
+                arg0 = self.generate_expr(node.arguments[0])
+                arg1 = self.generate_expr(node.arguments[1])
+                arg2 = self.generate_expr(node.arguments[2])
+                return f"chud_builtin_replace({arg0}, {arg1}, {arg2})"
 
             fn_name = self._sanitize_fn(node.name)
             args = ", ".join(self.generate_expr(a) for a in node.arguments)
@@ -680,29 +1199,16 @@ def compile_chud_to_executable(source_code: str, output_exe_path: str, compiler_
             raise RuntimeError(f"C Compilation failed:\n{res.stderr}")
         return output_exe_path
     finally:
-        # Keep .c file if user wants, or clean up if desired
+        # Clean up intermediate .c file if compilation succeeds
         pass
 
 
 if __name__ == '__main__':
     src = '''
-make bubble_sort(arr) {
-    let n = len(arr)
-    loop let i = 0; i < n; i = i + 1 {
-        loop let j = 0; j < n - i - 1; j = j + 1 {
-            check arr[j] > arr[j + 1] {
-                let temp = arr[j]
-                arr[j] = arr[j + 1]
-                arr[j + 1] = temp
-            }
-        }
-    }
-    return arr
-}
-
-let numbers = [64, 34, 25, 12, 22, 11, 90]
-yap "Original: " + numbers
-let sorted = bubble_sort(numbers)
-yap "Sorted: " + sorted
+let user = { "name": "Chad", "level": 9000 }
+yap user["name"]
+user["level"] = 9001
+yap user["level"]
+yap keys(user)
 '''
     print(transpile_source_to_c(src))

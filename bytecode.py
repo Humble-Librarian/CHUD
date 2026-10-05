@@ -20,6 +20,8 @@ class OpCode:
     LOAD_VAR     = 'LOAD_VAR'     # push value of variable named arg
     STORE_VAR    = 'STORE_VAR'    # pop value, store into variable named arg (declare)
     ASSIGN_VAR   = 'ASSIGN_VAR'   # pop value, assign into EXISTING variable named arg
+    LOAD_FAST    = 'LOAD_FAST'    # push value of local slot arg (integer index)
+    STORE_FAST   = 'STORE_FAST'   # pop value, store into local slot arg (integer index)
 
     # ── Arithmetic (binary — pop 2, push 1) ──
     ADD          = 'ADD'
@@ -53,10 +55,11 @@ class OpCode:
     CALL         = 'CALL'         # arg = (function_name, arg_count)
     RETURN       = 'RETURN'       # pop return value, exit function chunk
 
-    # ── Arrays / Lists ──
+    # ── Arrays / Lists / Dicts ──
     BUILD_LIST   = 'BUILD_LIST'   # arg = count; pop count items, push list
-    LOAD_INDEX   = 'LOAD_INDEX'   # pop index, pop target -> push target[index]
-    STORE_INDEX  = 'STORE_INDEX'  # pop value, pop index, pop target -> target[index] = value
+    BUILD_MAP    = 'BUILD_MAP'    # arg = count; pop count (k, v) pairs, push dict
+    LOAD_INDEX   = 'LOAD_INDEX'   # pop index/key, pop target -> push target[index]
+    STORE_INDEX  = 'STORE_INDEX'  # pop value, pop index/key, pop target -> target[index] = value
 
     # ── Program structure ──
     HALT         = 'HALT'         # stop execution
@@ -64,10 +67,11 @@ class OpCode:
     # ── OpCode Serialization Tables ──
     ALL_OPCODES = [
         PUSH_CONST, POP, LOAD_VAR, STORE_VAR, ASSIGN_VAR,
+        LOAD_FAST, STORE_FAST,
         ADD, SUB, MUL, DIV, MOD, NEG, POS, NOT,
         EQ, NEQ, LT, GT, LTE, GTE,
         JUMP, JUMP_IF_FALSE, PRINT, HEAR,
-        CALL, RETURN, BUILD_LIST, LOAD_INDEX, STORE_INDEX, HALT
+        CALL, RETURN, BUILD_LIST, BUILD_MAP, LOAD_INDEX, STORE_INDEX, HALT
     ]
     OPCODE_TO_ID = {op: i for i, op in enumerate(ALL_OPCODES)}
     ID_TO_OPCODE = {i: op for i, op in enumerate(ALL_OPCODES)}
@@ -75,12 +79,13 @@ class OpCode:
 
 class CHUDFunctionProto:
     """Bytecode representation of a compiled function."""
-    __slots__ = ('name', 'parameters', 'chunk')
+    __slots__ = ('name', 'parameters', 'chunk', 'local_slots')
 
-    def __init__(self, name, parameters, chunk):
-        self.name       = name
-        self.parameters = parameters
-        self.chunk      = chunk
+    def __init__(self, name, parameters, chunk, local_slots=None):
+        self.name        = name
+        self.parameters  = parameters
+        self.chunk       = chunk
+        self.local_slots = local_slots if local_slots is not None else {}
 
     def __repr__(self):
         return f"<fn {self.name}({', '.join(self.parameters)})>"
@@ -88,12 +93,13 @@ class CHUDFunctionProto:
 
 class CallFrame:
     """Execution context for a function invocation on the VM call stack."""
-    __slots__ = ('proto', 'ip', 'locals', 'constants', 'instructions')
+    __slots__ = ('proto', 'ip', 'locals', 'slots', 'constants', 'instructions')
 
-    def __init__(self, proto, locals_dict=None):
+    def __init__(self, proto, locals_dict=None, slot_values=None):
         self.proto        = proto
         self.ip           = 0
         self.locals       = locals_dict if locals_dict is not None else {}
+        self.slots        = slot_values if slot_values is not None else []
         self.constants    = proto.chunk.constants
         self.instructions = [(instr.op, instr.arg, instr.line) for instr in proto.chunk.instructions]
 

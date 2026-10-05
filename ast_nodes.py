@@ -229,6 +229,26 @@ class IndexAssignNode:
         return f"IndexAssign({self.target}[{self.index}] = {self.value})"
 
 
+class DictLiteralNode:
+    """Dictionary/Map literal expression: { key1: val1, key2: val2, ... }"""
+    def __init__(self, pairs, line=None):
+        self.pairs = pairs          # list of (key_expr, val_expr) tuples
+        self.line  = line
+
+    def __repr__(self):
+        return f"DictLiteral({len(self.pairs)} pairs)"
+
+
+class UseNode:
+    """Module import statement: use "path.chud" """
+    def __init__(self, module_path, line=None):
+        self.module_path = module_path  # str or expression node
+        self.line        = line
+
+    def __repr__(self):
+        return f"Use({repr(self.module_path)})"
+
+
 class ProgramNode:
     """Root node — the entire CHUD program.
     Contains a list of top-level statements.

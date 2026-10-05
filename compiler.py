@@ -20,9 +20,11 @@ from ast_nodes import (
     NumberNode, StringNode, BoolNode, IdentifierNode,
     CheckNode, KeepNode, LoopNode, StopNode, SkipNode, HearNode,
     FunctionNode, CallNode, ReturnNode,
-    ArrayLiteralNode, IndexAccessNode, IndexAssignNode
+    ArrayLiteralNode, IndexAccessNode, IndexAssignNode,
+    DictLiteralNode, UseNode
 )
 from bytecode import Chunk, OpCode, CHUDFunctionProto
+import os
 
 
 class CompileError(Exception):
@@ -50,6 +52,7 @@ class Compiler:
         self.chunk = Chunk()
         self.break_patches = []      # Stack of lists for pending 'stop' (break) jump patches
         self.continue_patches = []   # Stack of lists for pending 'skip' (continue) jump patches
+        self.slots_stack = []        # Stack of local variable slot mappings for fast locals
 
     def compile(self, ast):
         """Entry point: compile a full ProgramNode into a Chunk."""
@@ -100,6 +103,10 @@ class Compiler:
             return self.compile_identifier(node)
         if isinstance(node, ArrayLiteralNode):
             return self.compile_array_literal(node)
+        if isinstance(node, DictLiteralNode):
+            return self.compile_dict_literal(node)
+        if isinstance(node, UseNode):
+            return self.compile_use(node)
         if isinstance(node, IndexAccessNode):
             return self.compile_index_access(node)
         if isinstance(node, IndexAssignNode):
@@ -124,18 +131,24 @@ class Compiler:
 
         Bytecode shape:
             <compile the value expression — leaves 1 value on stack>
-            STORE_VAR x     (if 'let', i.e. is_declaration=True)
-            ASSIGN_VAR x    (if reassignment)
-
-        This mirrors interpreter.py's execute() for AssignNode:
-        eval_expr(node.value) then env.define() or env.assign().
-        Here: compile the value expression (which will push its
-        result at RUNTIME), then emit ONE instruction that will
-        pop that result into the variable.
+            STORE_FAST slot / STORE_VAR x     (if 'let', i.e. is_declaration=True)
+            STORE_FAST slot / ASSIGN_VAR x    (if reassignment)
         """
         self.compile_node(node.value)   # pushes the computed value at runtime
-        op = OpCode.STORE_VAR if node.is_declaration else OpCode.ASSIGN_VAR
-        self.chunk.emit(op, node.name, line=node.line)
+        if self.slots_stack:
+            local_slots = self.slots_stack[-1]
+            if node.is_declaration:
+                if node.name not in local_slots:
+                    local_slots[node.name] = len(local_slots)
+                self.chunk.emit(OpCode.STORE_FAST, local_slots[node.name], line=node.line)
+            else:
+                if node.name in local_slots:
+                    self.chunk.emit(OpCode.STORE_FAST, local_slots[node.name], line=node.line)
+                else:
+                    self.chunk.emit(OpCode.ASSIGN_VAR, node.name, line=node.line)
+        else:
+            op = OpCode.STORE_VAR if node.is_declaration else OpCode.ASSIGN_VAR
+            self.chunk.emit(op, node.name, line=node.line)
 
     def compile_yap(self, node):
         """yap expr
@@ -278,6 +291,11 @@ class Compiler:
         self.chunk.emit(OpCode.HEAR, line=node.line)
 
     def compile_function(self, node):
+        local_slots = {}
+        for p in node.parameters:
+            local_slots[p] = len(local_slots)
+
+        self.slots_stack.append(local_slots)
         parent_chunk = self.chunk
         self.chunk = Chunk()
         for stmt in node.body:
@@ -285,8 +303,9 @@ class Compiler:
         self.chunk.emit(OpCode.HALT, line=node.line)
         fn_chunk = self.chunk
         self.chunk = parent_chunk
+        self.slots_stack.pop()
 
-        proto = CHUDFunctionProto(node.name, node.parameters, fn_chunk)
+        proto = CHUDFunctionProto(node.name, node.parameters, fn_chunk, local_slots=local_slots)
         idx = self.chunk.add_constant(proto)
         self.chunk.emit(OpCode.PUSH_CONST, idx, line=node.line)
         self.chunk.emit(OpCode.STORE_VAR, node.name, line=node.line)
@@ -402,13 +421,36 @@ class Compiler:
 
     def compile_identifier(self, node):
         """A variable reference — push its current value."""
-        self.chunk.emit(OpCode.LOAD_VAR, node.name, line=node.line)
+        if self.slots_stack and node.name in self.slots_stack[-1]:
+            self.chunk.emit(OpCode.LOAD_FAST, self.slots_stack[-1][node.name], line=node.line)
+        else:
+            self.chunk.emit(OpCode.LOAD_VAR, node.name, line=node.line)
 
     def compile_array_literal(self, node):
         """[e1, e2, ...] — compile each element, then BUILD_LIST count."""
         for elem in node.elements:
             self.compile_node(elem)
         self.chunk.emit(OpCode.BUILD_LIST, len(node.elements), line=node.line)
+
+    def compile_dict_literal(self, node):
+        """{k1: v1, k2: v2, ...} — compile key, compile val for each pair, then BUILD_MAP count."""
+        for k_expr, v_expr in node.pairs:
+            self.compile_node(k_expr)
+            self.compile_node(v_expr)
+        self.chunk.emit(OpCode.BUILD_MAP, len(node.pairs), line=node.line)
+
+    def compile_use(self, node):
+        """use "path.chud" — inline and compile module at compile time."""
+        from lexer import Lexer
+        from parser import Parser
+        mod_path = node.module_path
+        if not os.path.exists(mod_path):
+            raise CompileError(f"Cannot use module '{mod_path}': File not found.")
+        with open(mod_path, 'r', encoding='utf-8') as f:
+            mod_code = f.read()
+        mod_tokens = Lexer(mod_code).tokenize()
+        mod_ast = Parser(mod_tokens).parse()
+        self.compile_program(mod_ast)
 
     def compile_index_access(self, node):
         """target[index] — push target, push index, then LOAD_INDEX."""
