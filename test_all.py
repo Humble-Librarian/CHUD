@@ -81,55 +81,62 @@ def test_frontend_files():
         assert os.path.getsize(filename) > 0, f"Empty {filename}"
     print("[OK] Task 3 Passed: Frontend files exist and are populated")
 
+from server import create_server
+
 def test_server():
-    port = 8765
-    server_thread = threading.Thread(target=run_server, args=(port,), daemon=True)
+    httpd = create_server(0)
+    port = httpd.server_port
+    server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     server_thread.start()
-    time.sleep(1)
+    time.sleep(0.5)
 
-    # 1. Test Static files
-    res = urllib.request.urlopen(f"http://localhost:{port}/")
-    assert res.status == 200
-    html = res.read().decode('utf-8')
-    assert "CHUD" in html
+    try:
+        # 1. Test Static files
+        res = urllib.request.urlopen(f"http://127.0.0.1:{port}/")
+        assert res.status == 200
+        html = res.read().decode('utf-8')
+        assert "CHUD" in html
 
-    # 2. Test /api/parse
-    payload = json.dumps({"code": "let z = 99\nyap z"}).encode('utf-8')
-    req = urllib.request.Request(
-        f"http://localhost:{port}/api/parse",
-        data=payload,
-        headers={"Content-Type": "application/json"}
-    )
-    res = urllib.request.urlopen(req)
-    data = json.loads(res.read().decode('utf-8'))
-    assert data["success"] is True
-    assert data["ast"]["type"] == "Program"
-    assert data["cst"]["type"] == "rule"
+        # 2. Test /api/parse
+        payload = json.dumps({"code": "let z = 99\nyap z"}).encode('utf-8')
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/parse",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        res = urllib.request.urlopen(req)
+        data = json.loads(res.read().decode('utf-8'))
+        assert data["success"] is True
+        assert data["ast"]["type"] == "Program"
+        assert data["cst"]["type"] == "rule"
 
-    # 3. Test /api/run
-    req = urllib.request.Request(
-        f"http://localhost:{port}/api/run",
-        data=payload,
-        headers={"Content-Type": "application/json"}
-    )
-    res = urllib.request.urlopen(req)
-    data = json.loads(res.read().decode('utf-8'))
-    assert data["success"] is True
-    assert data["output"] == ["99"]
+        # 3. Test /api/run
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/run",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        res = urllib.request.urlopen(req)
+        data = json.loads(res.read().decode('utf-8'))
+        assert data["success"] is True
+        assert data["output"] == ["99"]
 
-    # 4. Test /api/all
-    req = urllib.request.Request(
-        f"http://localhost:{port}/api/all",
-        data=payload,
-        headers={"Content-Type": "application/json"}
-    )
-    res = urllib.request.urlopen(req)
-    data = json.loads(res.read().decode('utf-8'))
-    assert data["success"] is True
-    assert data["output"] == ["99"]
-    assert data["ast"] is not None
+        # 4. Test /api/all
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/all",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        res = urllib.request.urlopen(req)
+        data = json.loads(res.read().decode('utf-8'))
+        assert data["success"] is True
+        assert data["output"] == ["99"]
+        assert data["ast"] is not None
 
-    print("[OK] Task 4 Passed: Server static files and all API endpoints (/api/parse, /api/run, /api/all)")
+        print("[OK] Task 4 Passed: Server static files and all API endpoints (/api/parse, /api/run, /api/all)")
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
 
 if __name__ == '__main__':
     test_ast_serializer()

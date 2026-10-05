@@ -1187,16 +1187,35 @@ def transpile_source_to_c(source_code: str) -> str:
 def find_c_compiler() -> str:
     """Finds an available C compiler on the system (gcc, clang, cc)."""
     import shutil
+    # 1. Check standard PATH
     for comp in ["gcc", "clang", "cc"]:
-        if shutil.which(comp):
-            return comp
-    return "gcc"
+        found = shutil.which(comp)
+        if found:
+            return found
+
+    # 2. Check common Windows MinGW / MSYS2 paths
+    if sys.platform == "win32":
+        common_paths = [
+            r"C:\msys64\mingw64\bin\gcc.exe",
+            r"C:\msys64\ucrt64\bin\gcc.exe",
+            r"C:\msys64\usr\bin\gcc.exe",
+            r"C:\Program Files\Git\mingw64\bin\gcc.exe",
+            r"C:\MinGW\bin\gcc.exe",
+        ]
+        for p in common_paths:
+            if os.path.isfile(p):
+                return p
+
+    return None
 
 
 def compile_chud_to_executable(source_code: str, output_exe_path: str, compiler_cmd: str = None) -> str:
     """Transpiles CHUD source code to C and compiles it directly into a standalone executable across OSes."""
     if compiler_cmd is None:
         compiler_cmd = find_c_compiler()
+
+    if not compiler_cmd:
+        raise RuntimeError("No working C compiler (gcc, clang, cc) was found on the system.")
 
     c_source = transpile_source_to_c(source_code)
     c_temp_file = output_exe_path + ".c"

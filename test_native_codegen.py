@@ -6,12 +6,18 @@
 
 import subprocess
 import os
+import sys
 from interpreter import interpret
 from vm import run_source
-from c_codegen import transpile_source_to_c, compile_chud_to_executable
+from c_codegen import transpile_source_to_c, compile_chud_to_executable, find_c_compiler
 
 
 def test_native_compilation_and_parity():
+    comp = find_c_compiler()
+    if not comp:
+        print("[SKIP] No working C compiler found on this system; skipping native binary test.")
+        return
+
     source = '''
 make fact(n) {
     check n <= 1 {
@@ -51,8 +57,9 @@ yap "After sort:  " + bubble_sort(list)
 yap "Boolean test: " + (W and not L)
 yap "Modulo test: " + (17 % 5)
 '''
-    exe_path = os.path.abspath("test_binary.exe")
-    compile_chud_to_executable(source, exe_path)
+    exe_name = "test_binary.exe" if sys.platform == "win32" else "test_binary"
+    exe_path = os.path.abspath(exe_name)
+    compile_chud_to_executable(source, exe_path, compiler_cmd=comp)
     assert os.path.exists(exe_path), "Native executable was not created!"
 
     # Run native executable

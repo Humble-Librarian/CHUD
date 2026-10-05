@@ -16,7 +16,7 @@ def test_endpoints():
     server_thread.start()
     time.sleep(1)
 
-    conn = http.client.HTTPConnection("localhost", port)
+    conn = http.client.HTTPConnection("127.0.0.1", port)
 
     # 1. GET /
     conn.request("GET", "/")

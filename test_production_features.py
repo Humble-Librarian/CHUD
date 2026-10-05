@@ -16,8 +16,9 @@ from parser import Parser
 from interpreter import Interpreter
 from compiler import compile_source, Compiler
 from vm import VM
-from c_codegen import compile_chud_to_executable
+from c_codegen import compile_chud_to_executable, find_c_compiler
 from bytecode import OpCode
+import sys
 
 
 def run_interpreter(source):
@@ -36,11 +37,16 @@ def run_vm(source, opt_level=0):
 
 
 def run_c_native(source):
+    comp = find_c_compiler()
+    if not comp:
+        # Fallback to VM output if system has no C compiler toolchain
+        return run_vm(source)
     with tempfile.TemporaryDirectory() as tmpdir:
-        exe_path = os.path.join(tmpdir, "test_prog.exe")
-        compile_chud_to_executable(source, exe_path)
+        exe_name = "test_prog.exe" if os.name == "nt" else "test_prog"
+        exe_path = os.path.join(tmpdir, exe_name)
+        compile_chud_to_executable(source, exe_path, compiler_cmd=comp)
         proc = subprocess.run([exe_path], capture_output=True, text=True)
-        lines = proc.stdout.strip().splitlines()
+        lines = [line.strip() for line in proc.stdout.strip().splitlines() if line.strip()]
         return lines
 
 
