@@ -12,7 +12,7 @@ import os
 import subprocess
 import tempfile
 from lexer import Lexer
-from parser import Parser
+from chud_parser import Parser
 from interpreter import Interpreter
 from compiler import compile_source, Compiler
 from vm import VM

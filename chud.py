@@ -22,7 +22,7 @@ import os
 import argparse
 
 from lexer import Lexer, LexerError
-from parser import Parser, ParseError
+from chud_parser import Parser, ParseError
 from interpreter import Interpreter, CHUDRuntimeError
 from vm import VM, VMRuntimeError
 from compiler import Compiler, CompileError

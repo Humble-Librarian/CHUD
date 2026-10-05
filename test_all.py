@@ -15,7 +15,7 @@ import time
 import urllib.request
 
 from lexer import Lexer
-from parser import Parser
+from chud_parser import Parser
 from ast_serializer import ast_to_d3
 from cst_generator import generate_cst
 from interpreter import Interpreter, interpret

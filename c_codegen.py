@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 from lexer import Lexer
-from parser import Parser
+from chud_parser import Parser
 from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
     KeepNode, StopNode, SkipNode, BinOpNode, UnaryOpNode,

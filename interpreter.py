@@ -8,7 +8,7 @@ from ast_nodes import (
     DictLiteralNode, UseNode
 )
 from lexer import Lexer, roast
-from parser import Parser
+from chud_parser import Parser
 
 
 class BreakSignal(Exception):

@@ -5,7 +5,7 @@
 
 import sys
 from lexer import Lexer, LexerError
-from parser import Parser, ParseError
+from chud_parser import Parser, ParseError
 from ast_serializer import ast_to_d3
 from cst_generator import generate_cst
 from interpreter import Interpreter, interpret

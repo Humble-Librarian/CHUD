@@ -5,7 +5,7 @@
 
 import unittest
 from lexer import Lexer
-from parser import Parser
+from chud_parser import Parser
 from ast_optimizer import ASTOptimizer
 from bytecode_optimizer import BytecodeOptimizer
 from compiler import Compiler

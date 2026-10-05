@@ -5,7 +5,7 @@
 #  by wrapping rule dispatches and capturing tokens.
 # ─────────────────────────────────────────────
 
-from parser import Parser
+from chud_parser import Parser
 from lexer import Lexer
 
 

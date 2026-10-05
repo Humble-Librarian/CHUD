@@ -442,7 +442,7 @@ class Compiler:
     def compile_use(self, node):
         """use "path.chud" — inline and compile module at compile time."""
         from lexer import Lexer
-        from parser import Parser
+        from chud_parser import Parser
         mod_path = node.module_path
         if not os.path.exists(mod_path):
             raise CompileError(f"Cannot use module '{mod_path}': File not found.")
@@ -474,7 +474,7 @@ def compile_source(source_code, opt_level=0):
       opt_level=2: AST folding + Bytecode sliding-window peephole optimizer
     """
     from lexer import Lexer
-    from parser import Parser
+    from chud_parser import Parser
     from ast_optimizer import ASTOptimizer
     from bytecode_optimizer import BytecodeOptimizer
 
