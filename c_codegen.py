@@ -31,6 +31,7 @@ CHUD_RUNTIME_HEADER = r'''/* -- CHUD Standalone C Runtime (chud_runtime.h) -- */
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <math.h>
 
@@ -1183,8 +1184,20 @@ def transpile_source_to_c(source_code: str) -> str:
     return CCodeGenerator().generate(ast)
 
 
-def compile_chud_to_executable(source_code: str, output_exe_path: str, compiler_cmd: str = "gcc") -> str:
-    """Transpiles CHUD source code to C and compiles it directly into a standalone .exe."""
+def find_c_compiler() -> str:
+    """Finds an available C compiler on the system (gcc, clang, cc)."""
+    import shutil
+    for comp in ["gcc", "clang", "cc"]:
+        if shutil.which(comp):
+            return comp
+    return "gcc"
+
+
+def compile_chud_to_executable(source_code: str, output_exe_path: str, compiler_cmd: str = None) -> str:
+    """Transpiles CHUD source code to C and compiles it directly into a standalone executable across OSes."""
+    if compiler_cmd is None:
+        compiler_cmd = find_c_compiler()
+
     c_source = transpile_source_to_c(source_code)
     c_temp_file = output_exe_path + ".c"
 
@@ -1192,14 +1205,16 @@ def compile_chud_to_executable(source_code: str, output_exe_path: str, compiler_
         f.write(c_source)
 
     try:
-        # Invoke GCC with C99 standard and optimizations
         cmd = [compiler_cmd, "-std=c99", "-O2", c_temp_file, "-o", output_exe_path]
+        # Link math library on Linux/Unix systems (required for fmod, floor in libm)
+        if sys.platform != "win32":
+            cmd.append("-lm")
+
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if res.returncode != 0:
-            raise RuntimeError(f"C Compilation failed:\n{res.stderr}")
+            raise RuntimeError(f"C Compilation failed with {compiler_cmd}:\n{res.stderr}")
         return output_exe_path
     finally:
-        # Clean up intermediate .c file if compilation succeeds
         pass
 
 

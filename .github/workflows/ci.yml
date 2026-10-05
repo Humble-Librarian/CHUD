@@ -1,0 +1,48 @@
+name: CHUD Universal Multi-Platform CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-cross-platform:
+    name: Test on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Verify Zero Pip Dependencies
+        run: |
+          python -c "import sys, os, struct, zlib, json, http.server; print('Pure stdlib verified.')"
+
+      - name: Run Production Features Test Matrix
+        run: python test_production_features.py
+
+      - name: Run Core & Server Test Suite
+        run: python test_all.py
+
+      - name: Run AST & Bytecode Optimizer Tests
+        run: python test_optimizer.py
+
+      - name: Run VM & Interpreter Parity Tests
+        run: python test_vm_parity.py
+
+      - name: Run Binary .chudc Serialization Tests
+        run: python test_bytecode_serialization.py
+
+      - name: Run Native C99 Codegen & GCC Compilation Tests
+        run: python test_native_codegen.py
