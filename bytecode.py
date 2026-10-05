@@ -61,6 +61,17 @@ class OpCode:
     # ── Program structure ──
     HALT         = 'HALT'         # stop execution
 
+    # ── OpCode Serialization Tables ──
+    ALL_OPCODES = [
+        PUSH_CONST, POP, LOAD_VAR, STORE_VAR, ASSIGN_VAR,
+        ADD, SUB, MUL, DIV, MOD, NEG, POS, NOT,
+        EQ, NEQ, LT, GT, LTE, GTE,
+        JUMP, JUMP_IF_FALSE, PRINT, HEAR,
+        CALL, RETURN, BUILD_LIST, LOAD_INDEX, STORE_INDEX, HALT
+    ]
+    OPCODE_TO_ID = {op: i for i, op in enumerate(ALL_OPCODES)}
+    ID_TO_OPCODE = {i: op for i, op in enumerate(ALL_OPCODES)}
+
 
 class CHUDFunctionProto:
     """Bytecode representation of a compiled function."""
