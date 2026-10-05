@@ -6,7 +6,7 @@
 
 from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
-    KeepNode, StopNode, BinOpNode, UnaryOpNode,
+    KeepNode, StopNode, SkipNode, BinOpNode, UnaryOpNode,
     NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
     LoopNode, FunctionNode, CallNode, ReturnNode
 )
@@ -77,6 +77,13 @@ def ast_to_d3(node):
         return {
             "name": "stop",
             "type": "Stop",
+            "line": node.line
+        }
+
+    if isinstance(node, SkipNode):
+        return {
+            "name": "skip",
+            "type": "Skip",
             "line": node.line
         }
 

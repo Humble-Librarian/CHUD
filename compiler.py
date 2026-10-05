@@ -18,7 +18,7 @@ from ast_nodes import (
     ProgramNode, AssignNode, YapNode,
     BinOpNode, UnaryOpNode,
     NumberNode, StringNode, BoolNode, IdentifierNode,
-    CheckNode, KeepNode, LoopNode, StopNode, HearNode,
+    CheckNode, KeepNode, LoopNode, StopNode, SkipNode, HearNode,
     FunctionNode, CallNode, ReturnNode,
 )
 from bytecode import Chunk, OpCode, CHUDFunctionProto
@@ -47,7 +47,8 @@ BINOP_TO_OPCODE = {
 class Compiler:
     def __init__(self):
         self.chunk = Chunk()
-        self.break_patches = []   # Stack of lists for pending 'stop' (break) jump patches
+        self.break_patches = []      # Stack of lists for pending 'stop' (break) jump patches
+        self.continue_patches = []   # Stack of lists for pending 'skip' (continue) jump patches
 
     def compile(self, ast):
         """Entry point: compile a full ProgramNode into a Chunk."""
@@ -74,6 +75,8 @@ class Compiler:
             return self.compile_loop(node)
         if isinstance(node, StopNode):
             return self.compile_stop(node)
+        if isinstance(node, SkipNode):
+            return self.compile_skip(node)
         if isinstance(node, HearNode):
             return self.compile_hear(node)
         if isinstance(node, FunctionNode):
@@ -209,8 +212,13 @@ class Compiler:
         jump_to_end_idx = self.chunk.emit(OpCode.JUMP_IF_FALSE, None, line=node.line)
 
         self.break_patches.append([])
+        self.continue_patches.append([])
         for stmt in node.body:
             self.compile_node(stmt)
+
+        # In keep loops, 'skip' jumps back to evaluate the condition (loop_start)
+        for cont_idx in self.continue_patches.pop():
+            self.chunk.patch_jump(cont_idx, loop_start)
 
         self.chunk.emit(OpCode.JUMP, loop_start, line=node.line)
         end = self.chunk.current_offset()
@@ -227,8 +235,14 @@ class Compiler:
         jump_to_end_idx = self.chunk.emit(OpCode.JUMP_IF_FALSE, None, line=node.line)
 
         self.break_patches.append([])
+        self.continue_patches.append([])
         for stmt in node.body:
             self.compile_node(stmt)
+
+        # In classic for-loops, 'skip' jumps to the update expression before looping back
+        update_start = self.chunk.current_offset()
+        for cont_idx in self.continue_patches.pop():
+            self.chunk.patch_jump(cont_idx, update_start)
 
         if node.update is not None:
             self.compile_node(node.update)
@@ -244,6 +258,12 @@ class Compiler:
             raise CompileError(f"line {node.line}: 'stop' used outside of any loop.")
         jump_idx = self.chunk.emit(OpCode.JUMP, None, line=node.line)
         self.break_patches[-1].append(jump_idx)
+
+    def compile_skip(self, node):
+        if not self.continue_patches:
+            raise CompileError(f"line {node.line}: 'skip' used outside of any loop.")
+        jump_idx = self.chunk.emit(OpCode.JUMP, None, line=node.line)
+        self.continue_patches[-1].append(jump_idx)
 
     def compile_hear(self, node):
         idx = self.chunk.add_constant(node.prompt if node.prompt is not None else "")

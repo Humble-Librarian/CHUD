@@ -250,6 +250,32 @@ yap side_effect
     assert_parity(src, "short-circuiting of and / or operators")
 
 
+def test_skip_in_keep_loop():
+    src = '''
+let i = 0
+keep i < 5 {
+    i = i + 1
+    check i == 3 {
+        skip
+    }
+    yap i
+}
+'''
+    assert_parity(src, "skip (continue) inside keep loop")
+
+
+def test_skip_in_classic_for_loop():
+    src = '''
+loop let i = 0; i < 5; i = i + 1 {
+    check i == 2 or i == 4 {
+        skip
+    }
+    yap i
+}
+'''
+    assert_parity(src, "skip (continue) inside classic for loop")
+
+
 if __name__ == '__main__':
     test_straight_line_arithmetic()
     test_string_concat_and_stringify()
@@ -275,5 +301,7 @@ if __name__ == '__main__':
     test_logical_not_operator()
     test_logical_and_or_operators()
     test_short_circuit_behavior()
+    test_skip_in_keep_loop()
+    test_skip_in_classic_for_loop()
 
     print("\n[CHUD] VM <-> INTERPRETER PARITY FULLY VERIFIED -- bytecode backend is a drop-in match.")

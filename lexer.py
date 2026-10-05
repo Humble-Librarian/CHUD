@@ -33,6 +33,7 @@ KEYWORDS = {
     'yap'      : 'YAP',         # print
     'let'      : 'LET',         # variable declaration
     'stop'     : 'STOP',        # break
+    'skip'     : 'SKIP',        # continue
     'W'        : 'W',           # true
     'L'        : 'L',           # false
     'hear'     : 'HEAR',        # input

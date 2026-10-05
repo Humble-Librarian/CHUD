@@ -133,21 +133,24 @@ keep count <= 3 {
 }
 ```
 
-Use `stop` to exit the nearest loop early.
+Use `stop` to exit the nearest loop early, and `skip` to skip directly to the next iteration.
 
 ```chud
 let number = 0
 
-keep number < 10 {
+keep number < 6 {
     number = number + 1
-    check number == 4 {
-        yap "Stopping at " + number
-        stop
+    check number == 3 {
+        skip // skip printing 3
     }
+    check number == 5 {
+        stop // stop at 5
+    }
+    yap number
 }
 ```
 
-`stop` only works inside a `keep` loop. CHUD also stops a loop after 100,000 iterations to avoid accidental infinite loops.
+`stop` and `skip` work inside both `keep` and `loop` blocks. CHUD also stops a loop after 100,000 iterations to avoid accidental infinite loops.
 
 ## Reading input with `hear`
 
@@ -203,14 +206,14 @@ loop let i = 0; i <= 3; i = i + 1 {
 }
 ```
 
-The parts are: initialize `i`, keep running while the condition is true, then update `i` after each pass. The loop variable is local to the loop and is not available afterward. `stop` can still leave the loop early.
+The parts are: initialize `i`, keep running while the condition is true, then update `i` after each pass. The loop variable is local to the loop and is not available afterward. `stop` leaves the loop early, while `skip` jumps directly to the update step.
 
 ```chud
-loop let i = 0; i < 10; i = i + 1 {
-    check i == 4 {
-        stop
+loop let i = 0; i < 6; i = i + 1 {
+    check i % 2 == 0 {
+        skip // skip even numbers
     }
-    yap i
+    yap i // prints 1, 3, 5
 }
 ```
 

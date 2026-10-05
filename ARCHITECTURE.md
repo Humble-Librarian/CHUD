@@ -65,7 +65,7 @@ flowchart LR
    - `<=` and `>=` take precedence over `<` and `>`.
    - `3.14` is matched as `FLOAT`, rather than `NUMBER` + `.` + `NUMBER`.
 2. **Priority-Ordered Token Patterns:** Regex patterns are evaluated in strict precedence (`FLOAT` $\rightarrow$ `NUMBER` $\rightarrow$ `STRING` $\rightarrow$ `EQEQ` $\rightarrow$ `NEQ` $\rightarrow$ `BANG` $\rightarrow$ `LE` $\rightarrow$ `GE` $\rightarrow$ `EQ` $\rightarrow$ Single Character Operators $\rightarrow$ `PERCENT` $\rightarrow$ `IDENTIFIER`).
-3. **Keyword Discrimination:** Any word matching the identifier pattern is checked against the internal `KEYWORDS` dictionary (`check`, `otherwise`, `keep`, `loop`, `let`, `make`, `return`, `yap`, `hear`, `stop`, `W`, `L`, `and`, `or`, `not`). If found, it receives a dedicated keyword token type; otherwise, it remains an `IDENTIFIER`.
+3. **Keyword Discrimination:** Any word matching the identifier pattern is checked against the internal `KEYWORDS` dictionary (`check`, `otherwise`, `keep`, `loop`, `let`, `make`, `return`, `yap`, `hear`, `stop`, `skip`, `W`, `L`, `and`, `or`, `not`). If found, it receives a dedicated keyword token type; otherwise, it remains an `IDENTIFIER`.
 4. **Line-Numbered Error Diagnostics:** Every token retains its 1-indexed source line. If an unknown character is encountered, a descriptive `LexError` is raised with the line number and diagnostic feedback.
 
 ---
@@ -152,7 +152,7 @@ flowchart LR
    - **Control Flow:** `OP_JUMP`, `OP_JUMP_IF_FALSE`, `OP_HALT` (short-circuiting for `and`/`or` using conditional jumps)
    - **I/O & Subroutines:** `OP_YAP`, `OP_HEAR`, `OP_DEF_FUNC`, `OP_CALL`, `OP_RETURN`
 2. **Backpatching for Jumps:** When compiling `check` conditionals or `keep` loops, forward target jump addresses are unknown. The compiler emits dummy placeholder operands, tracks the emitted position, compiles the body, and "backpatches" the exact relative jump offset.
-3. **Loop `stop` (Break) Patch Stacks:** Nested loops maintain a stack of unresolved break jumps. When the loop body finishes, all pending `stop` statements are patched to jump directly past the loop exit.
+3. **Loop `stop` (Break) & `skip` (Continue) Patch Stacks:** Nested loops maintain stacks of unresolved break and continue jumps. When the loop finishes, pending `stop` statements are patched to jump past the loop exit, while `skip` statements are patched to jump to the condition check (for `keep` loops) or the update expression (for classic `loop` headers).
 4. **CallFrame Subroutine Architecture:** When `OP_CALL` executes, a new `CallFrame` is pushed containing the target `CHUDFunctionProto`, its own instruction pointer (`ip`), and local argument values. `OP_RETURN` unwinds the top frame and restores caller state.
 
 ---
@@ -227,7 +227,7 @@ python chud.py
 # 4. Run the Full Compiler & Integration Test Suite
 python test_all.py
 
-# 5. Run the Bytecode VM vs. Interpreter Parity Verification Suite (19 Tests)
+# 5. Run the Bytecode VM vs. Interpreter Parity Verification Suite (26 Tests)
 python test_vm_parity.py
 
 # 6. Run Server API & Pipeline Test Suites

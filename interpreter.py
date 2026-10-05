@@ -6,7 +6,7 @@
 
 from ast_nodes import (
     ProgramNode, AssignNode, YapNode, CheckNode,
-    KeepNode, StopNode, BinOpNode, UnaryOpNode,
+    KeepNode, StopNode, SkipNode, BinOpNode, UnaryOpNode,
     NumberNode, StringNode, BoolNode, IdentifierNode, HearNode,
     LoopNode, FunctionNode, CallNode, ReturnNode
 )
@@ -15,7 +15,12 @@ from parser import Parser
 
 
 class BreakSignal(Exception):
-    """Raised by 'stop' statement to break out of keep loops."""
+    """Raised by 'stop' statement to break out of loops."""
+    pass
+
+
+class ContinueSignal(Exception):
+    """Raised by 'skip' statement to continue to next iteration of loops."""
     pass
 
 
@@ -284,6 +289,8 @@ class Interpreter:
                         self.execute(stmt, block_env)
                 except BreakSignal:
                     break
+                except ContinueSignal:
+                    continue
             return
 
         if isinstance(node, LoopNode):
@@ -301,6 +308,8 @@ class Interpreter:
                         self.execute(stmt, body_env)
                 except BreakSignal:
                     break
+                except ContinueSignal:
+                    pass
                 self.execute(node.update, loop_env)
             return
 
@@ -313,6 +322,9 @@ class Interpreter:
 
         if isinstance(node, StopNode):
             raise BreakSignal()
+
+        if isinstance(node, SkipNode):
+            raise ContinueSignal()
 
         if isinstance(node, ProgramNode):
             for stmt in node.statements:

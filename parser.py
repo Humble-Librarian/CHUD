@@ -5,7 +5,7 @@
 #
 #  Grammar (reference):
 #  program     → statement*
-#  statement   → let_stmt | assign_stmt | check_stmt | keep_stmt | loop_stmt | make_stmt | return_stmt | yap_stmt | stop_stmt
+#  statement   → let_stmt | assign_stmt | check_stmt | keep_stmt | loop_stmt | make_stmt | return_stmt | yap_stmt | stop_stmt | skip_stmt
 #  let_stmt    → LET IDENTIFIER EQ expression
 #  assign_stmt → IDENTIFIER EQ expression
 #  check_stmt  → CHECK expression LBRACE statement* RBRACE (OTHERWISE LBRACE statement* RBRACE)?
@@ -15,6 +15,7 @@
 #  return_stmt → RETURN expression
 #  yap_stmt    → YAP expression
 #  stop_stmt   → STOP
+#  skip_stmt   → SKIP
 #  expression  → logic_or
 #  logic_or    → logic_and ( 'or' logic_and )*
 #  logic_and   → comparison ( 'and' comparison )*
@@ -123,6 +124,9 @@ class Parser:
         elif tok.type == 'STOP':
             self.advance()
             return StopNode(line=tok.line)
+        elif tok.type == 'SKIP':
+            self.advance()
+            return SkipNode(line=tok.line)
         elif tok.type == 'ID':
             if self.tokens[self.pos + 1].type == 'LPAREN':
                 return self.parse_expression()

@@ -133,12 +133,21 @@ class KeepNode:
 
 
 class StopNode:
-    """Break statement: stop (exits the nearest keep loop)"""
+    """Break statement: stop (exits the nearest loop)"""
     def __init__(self, line=None):
         self.line = line
 
     def __repr__(self):
         return "Stop()"
+
+
+class SkipNode:
+    """Continue statement: skip (skips to next iteration of nearest loop)"""
+    def __init__(self, line=None):
+        self.line = line
+
+    def __repr__(self):
+        return "Skip()"
 
 
 class LoopNode:
