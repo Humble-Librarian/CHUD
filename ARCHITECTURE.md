@@ -99,11 +99,11 @@ flowchart TD
 
 ---
 
-### ⚙️ Stage 3: Dual Execution Engine (Interpreter vs. Bytecode VM)
-**Files involved:** [`interpreter.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/interpreter.py), [`compiler.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/compiler.py), [`vm.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/vm.py), [`test_vm_parity.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_vm_parity.py)
+### ⚙️ Stage 3: Triple Execution Engine (Interpreter vs. Bytecode VM vs. Native C AOT)
+**Files involved:** [`interpreter.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/interpreter.py), [`compiler.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/compiler.py), [`vm.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/vm.py), [`c_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/c_codegen.py), [`test_vm_parity.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_vm_parity.py), [`test_native_codegen.py`](file:///d:/CHUD%20-%20Custom%20High-level%20User%20Development%20Language/test_native_codegen.py)
 
 #### 🎯 Goal
-Execute the validated program using two fundamentally different runtime paradigms and guarantee 100% execution output parity.
+Execute the validated program using three fundamentally different runtime paradigms and guarantee 100% execution output parity.
 
 ```mermaid
 flowchart TD
@@ -113,22 +113,25 @@ flowchart TD
     
     Choice -->|Engine B| Comp["⚡ Bytecode Compiler (compiler.py)<br>• Emits flat instruction stream (Chunk)<br>• Constant pool deduplication<br>• Jump backpatching"]
     
+    Choice -->|Engine C| Native["🚀 Native C Transpiler (c_codegen.py)<br>• Emits self-contained C99 source<br>• CHUD_Value tagged union & Arena<br>• Compiles to native .exe via GCC"]
+    
     Comp --> VM["🖥️ Stack-based VM (vm.py)<br>• Instruction Pointer (ip)<br>• Push/Pop Value Stack<br>• Call Frames for functions"]
     
     Interp --> Out["Terminal Output + Variable State"]
     VM --> Out
+    Native --> Out
 ```
 
 #### 💡 Comparative Engine Architecture:
 
-| Feature | Tree-Walk Interpreter (`interpreter.py`) | Bytecode Virtual Machine (`compiler.py` + `vm.py`) |
-| :--- | :--- | :--- |
-| **Execution Model** | Recursive visitor on AST node hierarchy | Linear instruction dispatch loop on a stack machine |
-| **Intermediate Representation** | In-Memory AST Node Graph | Flat `Chunk` of numeric OpCodes & Constants |
-| **Memory / Variable State** | Chained `Environment` symbol table dictionaries | Local/Global variable tables & Value Stack slots |
-| **Function Invocations** | Python recursive calls creating new `Environment` instances | Discrete `CallFrame` stack with isolated `ip` and base pointer |
-| **Loop / Jump Handling** | Native Python `while` / `for` loop traversal | `OP_JUMP` & `OP_JUMP_IF_FALSE` relative bytecode offsets |
-| **Safety Guard** | 100,000 max loop iteration threshold | Instruction-level boundary & stack underflow protection |
+| Feature | Tree-Walk Interpreter (`interpreter.py`) | Bytecode Virtual Machine (`compiler.py` + `vm.py`) | Native AOT Compiler (`c_codegen.py` $\rightarrow$ `.exe`) |
+| :--- | :--- | :--- | :--- |
+| **Execution Model** | Recursive visitor on AST node hierarchy | Linear instruction dispatch loop on a stack machine | Compiled machine code running natively on bare metal |
+| **Intermediate Representation** | In-Memory AST Node Graph | Flat `Chunk` of numeric OpCodes & Constants | Self-contained C99 source string with embedded runtime |
+| **Memory / Variable State** | Chained `Environment` symbol table dictionaries | Local/Global variable tables & Value Stack slots | Native C stack variables & `CHUD_Value` Tagged Unions |
+| **Function Invocations** | Python recursive calls creating new `Environment` instances | Discrete `CallFrame` stack with isolated `ip` and base pointer | Native C function call stack with zero overhead |
+| **Loop / Jump Handling** | Native Python `while` / `for` loop traversal | `JUMP` & `JUMP_IF_FALSE` relative bytecode offsets | Native C `while` / `for` / `break` / `continue` assembly loops |
+| **Safety Guard** | 100,000 max loop iteration threshold | Instruction-level boundary & stack underflow protection | Signal-safe panic traps and automatic memory arena tracker |
 
 ---
 
